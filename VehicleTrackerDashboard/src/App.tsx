@@ -16,24 +16,39 @@ type Vehicle = {
 export default function App() {
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-useEffect(() => {
-  fetch("http://localhost:5067/api/vehicle/status")
-    .then(res => res.json())
-    .then(data => {
-      console.log("Fetched vehicles:", data);
-      setVehicles(data);
-    })
-    .catch(err => console.error("Fetch error:", err));
-}, []);
-
+  useEffect(() => {
+    setIsLoading(true); // start loading
+    fetch("http://localhost:5067/api/vehicle/status")
+      .then(res => res.json())
+      .then(data => {
+        console.log("Fetched vehicles:", data);
+        setVehicles(data);
+        setIsLoading(false); // done loading
+      })
+      .catch(err => {
+        console.error("Fetch error:", err);
+        setError(true);       // set error state
+        setIsLoading(false);  // still stop loading
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
         <h1 className="text-3xl font-bold mb-6">Vehicle Status</h1>
 
-        {vehicles.map((vehicle) => (
+        {isLoading && 
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-blue-500"></div>
+          </div>
+        }
+
+        {error && <p className="text-red-500">Failed to load vehicle data.</p>}
+
+        {!isLoading && !error && vehicles.map((vehicle) => (
           <div
             key={vehicle.vehicleId}
             className="bg-gray-800 rounded-xl p-6 shadow-md"
