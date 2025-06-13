@@ -1,37 +1,39 @@
+import { useEffect, useState } from 'react'
 import './index.css'
 
-const sampleVehicles = [
-  {
-    vehicleId: 1,
-    speed: 65,
-    fuelLevel: 55.5,
-    engineHealth: "Good",
-    timestamp: "2025-06-13T17:00:00Z",
-    location: {
-      latitude: 42.123,
-      longitude: -83.456,
-    },
-  },
-  {
-    vehicleId: 2,
-    speed: 80,
-    fuelLevel: 30.2,
-    engineHealth: "Needs Maintenance",
-    timestamp: "2025-06-13T17:10:00Z",
-    location: {
-      latitude: 42.321,
-      longitude: -83.987,
-    },
-  },
-];
+type Vehicle = {
+  vehicleId: number;
+  speed: number;
+  fuelLevel: number;
+  engineHealth: string;
+  timestamp: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+};
 
 export default function App() {
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
+useEffect(() => {
+  fetch("http://localhost:5067/api/vehicle/status")
+    .then(res => res.json())
+    .then(data => {
+      console.log("Fetched vehicles:", data);
+      setVehicles(data);
+    })
+    .catch(err => console.error("Fetch error:", err));
+}, []);
+
+
   return (
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
         <h1 className="text-3xl font-bold mb-6">Vehicle Status</h1>
 
-        {sampleVehicles.map((vehicle) => (
+        {vehicles.map((vehicle) => (
           <div
             key={vehicle.vehicleId}
             className="bg-gray-800 rounded-xl p-6 shadow-md"
