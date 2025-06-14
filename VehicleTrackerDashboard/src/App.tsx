@@ -20,20 +20,34 @@ export default function App() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    setIsLoading(true); // start loading
+    setIsLoading(true); 
+    fetchVehicles();
+    const intervalId = setInterval(fetchVehicles, 5000); // Repeat every 5 seconds
+    return () => clearInterval(intervalId); // Cleanup on unmount
+
+  }, []);
+
+  function fetchVehicles(){
     fetch("http://localhost:5067/api/vehicle/status")
       .then(res => res.json())
       .then(data => {
         console.log("Fetched vehicles:", data);
         setVehicles(data);
-        setIsLoading(false); // done loading
+        setIsLoading(false); 
       })
       .catch(err => {
         console.error("Fetch error:", err);
-        setError(true);       // set error state
-        setIsLoading(false);  // still stop loading
+        setError(true);       
+        setIsLoading(false); 
       });
-  }, []);
+  }
+
+  const getFuelColor = (level: number) => {
+    if (level >= 50) return "bg-green-500";
+    if (level >= 25) return "bg-yellow-500";
+    return "bg-red-500";
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
@@ -70,6 +84,13 @@ export default function App() {
 
             <p>Speed: {vehicle.speed} mph</p>
             <p>Fuel Level: {vehicle.fuelLevel.toFixed(1)}%</p>
+            <div className="bg-gray-800 h-3 w-full">
+                <div 
+                  className={`h-full rounded ${getFuelColor(vehicle.fuelLevel)}`}
+                  style={{width: `${vehicle.fuelLevel}%` }}
+                >
+                </div>
+            </div>
             <p>
               Location: {vehicle.location.latitude.toFixed(3)},{" "}
               {vehicle.location.longitude.toFixed(3)}
