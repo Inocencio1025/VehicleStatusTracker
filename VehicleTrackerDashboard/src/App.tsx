@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import './index.css'
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+// for datetime updates  
+dayjs.extend(relativeTime);
 
 type Vehicle = {
   vehicleId: number;
@@ -18,6 +23,10 @@ export default function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [sortBy, setSortBy] = useState('');
+
+
+
 
   useEffect(() => {
     setIsLoading(true); 
@@ -42,6 +51,18 @@ export default function App() {
       });
   }
 
+  const sortedVehicles = [...vehicles].sort((a, b) => {
+  if (sortBy === 'id') {
+    return a.vehicleId - b.vehicleId;
+  } else if (sortBy === 'speed') {
+    return b.speed - a.speed; // descending
+  } else if (sortBy === 'fuel') {
+    return b.fuelLevel - a.fuelLevel; // descending
+  }
+  return 0;
+});
+
+
   const getFuelColor = (level: number) => {
     if (level >= 50) return "bg-green-500";
     if (level >= 25) return "bg-yellow-500";
@@ -49,10 +70,23 @@ export default function App() {
   };
 
 
+
+
   return (
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
-        <h1 className="text-3xl font-bold mb-6">Vehicle Status</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold mb-6">Vehicle Status</h1>
+          <select
+            className="bg-gray-800 text-white p-2 rounded mx-5"
+            onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="">Sort By</option>
+              <option value="id">Vehicle ID</option>
+              <option value="speed">Speed</option>
+              <option value="fuel">Fuel Level</option>
+            </select>
+        </div>
 
         {isLoading && 
           <div className="flex justify-center">
@@ -62,17 +96,17 @@ export default function App() {
 
         {error && <p className="text-red-500">Failed to load vehicle data.</p>}
 
-        {!isLoading && !error && vehicles.map((vehicle) => (
+        {!isLoading && !error && sortedVehicles.map((vehicle) => (
           <div
             key={vehicle.vehicleId}
-            className="bg-gray-800 rounded-xl p-6 shadow-md"
+            className="bg-gray-800 rounded-xl p-6 shadow shadow-gray-700 hover:shadow-2xl hover:shadow-black transition-shadow duration-300"
           >
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-semibold">
                 Vehicle #{vehicle.vehicleId}
               </h2>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                className={`px-5 py-1 ml-5 h rounded-full text-sm font-medium ${
                   vehicle.engineHealth === "Good"
                     ? "bg-green-600"
                     : "bg-yellow-500"
@@ -96,7 +130,7 @@ export default function App() {
               {vehicle.location.longitude.toFixed(3)}
             </p>
             <p className="text-sm text-gray-400 mt-2">
-              Last updated: {new Date(vehicle.timestamp).toLocaleString()}
+              Last updated: {dayjs(vehicle.timestamp).fromNow()}
             </p>
           </div>
         ))}
