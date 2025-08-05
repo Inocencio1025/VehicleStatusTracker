@@ -404,3 +404,23 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Node.js
+node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+
+# VSCode
+.vscode/
+
+# .NET/Visual Studio
+*.sln
+*.csproj
+*.user
+*.vs/
+
+# Logs & system files
+*.log
+.DS_Store
