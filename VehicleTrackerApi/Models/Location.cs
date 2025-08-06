@@ -1,12 +1,15 @@
-public class Location
+namespace VehicleTrackerApi.Models
 {
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-
-    public Location() {}
-    public Location(double latitude, double longitude)
+    public class Location
     {
-        Latitude = latitude;
-        Longitude = longitude;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+
+        public Location() { }
+        public Location(double latitude, double longitude)
+        {
+            Latitude = latitude;
+            Longitude = longitude;
+        }
     }
 }

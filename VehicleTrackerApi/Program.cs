@@ -1,5 +1,12 @@
+using Microsoft.EntityFrameworkCore;
+using VehicleTrackerApi.Data;
+
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 var builder = WebApplication.CreateBuilder(args);
+
+// db context
+builder.Services.AddDbContext<VehicleTrackerContext>(options =>
+    options.UseSqlite("Data Source=vehicles.db"));
 
 // Configure CORS
 builder.Services.AddCors(options =>
