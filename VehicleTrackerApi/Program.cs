@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Services;
 using VehicleTrackerApi.Data;
 
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -24,6 +25,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();          // Enables controller support
 builder.Services.AddEndpointsApiExplorer(); // For Swagger/OpenAPI
 builder.Services.AddSwaggerGen();           // Swagger UI generation
+builder.Services.AddHostedService<TelemetryBackgroundService>(); //live updates (5 seconds)
 
 var app = builder.Build();
 
