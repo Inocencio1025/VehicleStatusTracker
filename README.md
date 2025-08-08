@@ -1,7 +1,7 @@
 # Vehicle Status Tracker
 
 ## Overview
-Real-time vehicle telemetry tracker with a C# ASP.NET Core backend API, cloud data storage, and a mobile dashboard built with React Native for live status monitoring and simulation of vehicle metrics.
+Real-time vehicle telemetry tracker with a C# ASP.NET Core backend API, cloud data storage, and a web dashboard built with React (Vite) for live status monitoring and simulation of vehicle metrics.
 
 ## Features
 - RESTful API built with ASP.NET Core for vehicle data ingestion and retrieval
@@ -11,7 +11,7 @@ Real-time vehicle telemetry tracker with a C# ASP.NET Core backend API, cloud da
 
 ## Technologies
 - C# / ASP.NET Core Web API
-- React Native (TypeScript)
+- React (Vite, TypeScript)
 - Firebase
 
 ## Getting Started
@@ -20,7 +20,6 @@ Real-time vehicle telemetry tracker with a C# ASP.NET Core backend API, cloud da
 - [.NET SDK](https://dotnet.microsoft.com/download)
 - [Node.js and npm](https://nodejs.org/)
 - Git
-- React Native CLI or Expo
 
 ### Setup Backend
 
@@ -43,7 +42,6 @@ Real-time vehicle telemetry tracker with a C# ASP.NET Core backend API, cloud da
    dotnet run
    ```
 
-
 ### Setup Frontend
 
 1. Navigate to the frontend folder:  
@@ -58,7 +56,7 @@ Real-time vehicle telemetry tracker with a C# ASP.NET Core backend API, cloud da
 
 3. Start the Expo app:  
    ```bash
-   npx expo start
+   npm run dev
    ```
    
 
