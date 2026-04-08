@@ -4,15 +4,15 @@
 Real-time vehicle telemetry tracker with a C# ASP.NET Core backend API, cloud data storage, and a web dashboard built with React (Vite) for live status monitoring and simulation of vehicle metrics.
 
 ## Features
-- RESTful API built with ASP.NET Core for vehicle data ingestion and retrieval
+- RESTful API built with ASP.NET Core for vehicle data retrieval
 - Simulated real-time telemetry data generation
 - Cloud storage integration 
-- Mobile dashboard using React Native
+- Web dashboard
 
 ## Technologies
 - C# / ASP.NET Core Web API
 - React (Vite, TypeScript)
-- Firebase
+- Entity Framework Core
 
 ## Getting Started
 
