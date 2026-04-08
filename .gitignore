@@ -424,3 +424,9 @@ node_modules/
 # Logs & system files
 *.log
 .DS_Store
+
+# Cursor IDE
+.cursor/
+
+# Dev notes
+*.docx

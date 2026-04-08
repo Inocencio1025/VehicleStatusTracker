@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Services;
 using VehicleTrackerApi.Data;
+using VehicleTrackerApi.Hubs;
+using VehicleTrackerApi.Services;
 
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +18,8 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins("http://localhost:5173")
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
 });
 
@@ -25,7 +27,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();          // Enables controller support
 builder.Services.AddEndpointsApiExplorer(); // For Swagger/OpenAPI
 builder.Services.AddSwaggerGen();           // Swagger UI generation
-builder.Services.AddHostedService<TelemetryBackgroundService>(); //live updates (5 seconds)
+builder.Services.AddSignalR();              // SignalR for real-time communication
+builder.Services.AddHostedService<TelemetryBroadcastService>();
 
 var app = builder.Build();
 
@@ -41,5 +44,6 @@ app.UseHttpsRedirection();
 app.UseCors(MyAllowSpecificOrigins);
 
 app.MapControllers();  // Map controller routes
+app.MapHub<VehicleHub>("/hubs/vehicle");
 
 app.Run();

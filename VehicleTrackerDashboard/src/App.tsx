@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './index.css'
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import * as signalR from "@microsoft/signalr";
 
 // for datetime updates  
 dayjs.extend(relativeTime);
@@ -24,28 +25,89 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [sortBy, setSortBy] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'disconnected'>('connecting');
 
 
 
 
   useEffect(() => {
-    setIsLoading(true); 
-    fetchVehicles();
-    const intervalId = setInterval(fetchVehicles, 5000); // Repeat every 5 seconds
-    return () => clearInterval(intervalId); // Cleanup on unmount
+    let isMounted = true;
+    let connection: signalR.HubConnection | null = null;
+
+    const setup = async () => {
+      setIsLoading(true);
+      await fetchVehicles(isMounted);
+
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl("http://localhost:5067/hubs/vehicle")
+        .withAutomaticReconnect()
+        .build();
+
+      connection.onreconnecting(() => {
+        if (!isMounted) return;
+        setConnectionStatus('reconnecting');
+      });
+
+      connection.onreconnected(() => {
+        if (!isMounted) return;
+        setConnectionStatus('connected');
+      });
+
+      connection.onclose(() => {
+        if (!isMounted) return;
+        setConnectionStatus('disconnected');
+      });
+
+      connection.on("VehicleStatusUpdated", (updatedVehicle: Vehicle) => {
+        if (!isMounted) return;
+
+        setVehicles(prevVehicles => {
+          const existingIndex = prevVehicles.findIndex(v => v.vehicleId === updatedVehicle.vehicleId);
+          if (existingIndex === -1) {
+            return [...prevVehicles, updatedVehicle];
+          }
+
+          const next = [...prevVehicles];
+          next[existingIndex] = updatedVehicle;
+          return next;
+        });
+      });
+
+      try {
+        await connection.start();
+        if (isMounted) {
+          setConnectionStatus('connected');
+        }
+      } catch (err) {
+        console.error("SignalR connection error:", err);
+        if (isMounted) {
+          setConnectionStatus('disconnected');
+        }
+      }
+    };
+
+    setup();
+
+    return () => {
+      isMounted = false;
+      connection?.stop();
+    };
 
   }, []);
 
-  function fetchVehicles(){
-    fetch("http://localhost:5067/api/vehicle/status")
+  function fetchVehicles(isMounted = true){
+    return fetch("http://localhost:5067/api/vehicle/status")
       .then(res => res.json())
       .then(data => {
         console.log("Fetched vehicles:", data);
+        if (!isMounted) return;
         setVehicles(data);
+        setError(false);
         setIsLoading(false); 
       })
       .catch(err => {
         console.error("Fetch error:", err);
+        if (!isMounted) return;
         setError(true);       
         setIsLoading(false); 
       });
@@ -69,6 +131,13 @@ export default function App() {
     return "bg-red-500";
   };
 
+  const connectionBadgeStyles: Record<typeof connectionStatus, string> = {
+    connecting: "bg-blue-600",
+    connected: "bg-green-600",
+    reconnecting: "bg-yellow-500 text-black",
+    disconnected: "bg-red-600"
+  };
+
 
 
 
@@ -76,7 +145,12 @@ export default function App() {
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold mb-6">Vehicle Status</h1>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">Vehicle Status</h1>
+            <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${connectionBadgeStyles[connectionStatus]}`}>
+              {connectionStatus}
+            </span>
+          </div>
           <select
             className="bg-gray-800 text-white p-2 rounded mx-5"
             onChange={(e) => setSortBy(e.target.value)}
