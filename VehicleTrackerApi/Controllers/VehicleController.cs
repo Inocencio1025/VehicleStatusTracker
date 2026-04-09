@@ -13,18 +13,26 @@ namespace VehicleTrackerApi.Controllers
     {
         private readonly VehicleTrackerContext _context;
         private readonly IHubContext<VehicleHub> _hubContext;
+        private readonly ILogger<VehicleController> _logger;
         private readonly Random _random = new();
 
-        public VehicleController(VehicleTrackerContext context, IHubContext<VehicleHub> hubContext)
+        public VehicleController(
+            VehicleTrackerContext context,
+            IHubContext<VehicleHub> hubContext,
+            ILogger<VehicleController> logger)
         {
             _context = context;
             _hubContext = hubContext;
+            _logger = logger;
         }
 
         [HttpGet("status")]
         public async Task<IActionResult> GetVehicleStatus()
         {
             var vehicles = await _context.Vehicles.ToListAsync();
+            _logger.LogInformation(
+                "Returned vehicle status list with {VehicleCount} vehicle(s).",
+                vehicles.Count);
             return Ok(vehicles);
         }
 
@@ -32,10 +40,19 @@ namespace VehicleTrackerApi.Controllers
         public async Task<IActionResult> PostVehicleStatus([FromBody] Vehicle vehicle)
         {
             if (vehicle == null)
+            {
+                _logger.LogWarning("Vehicle status payload was null.");
                 return BadRequest("Vehicle data is required.");
+            }
+
+            _logger.LogDebug(
+                "Processing vehicle status update for VehicleId {VehicleId} at {Timestamp}.",
+                vehicle.VehicleId,
+                vehicle.Timestamp);
 
             var existingVehicle = await _context.Vehicles
                 .FirstOrDefaultAsync(v => v.VehicleId == vehicle.VehicleId);
+            var operation = existingVehicle == null ? "insert" : "update";
 
             if (existingVehicle == null)
             {
@@ -53,15 +70,26 @@ namespace VehicleTrackerApi.Controllers
             await _context.SaveChangesAsync();
             await _hubContext.Clients.All.SendAsync("VehicleStatusUpdated", vehicle);
 
+            _logger.LogInformation(
+                "Vehicle status {Operation} succeeded and broadcast event {EventName} was sent for VehicleId {VehicleId}.",
+                operation,
+                "VehicleStatusUpdated",
+                vehicle.VehicleId);
+
             return Ok(vehicle);
         }
 
         [HttpPost("demo-tick")]
         public async Task<IActionResult> DemoTick()
         {
+            _logger.LogInformation("Demo tick requested.");
+
             var vehicles = await _context.Vehicles.ToListAsync();
             if (!vehicles.Any())
+            {
+                _logger.LogWarning("Demo tick skipped because there are no vehicles.");
                 return BadRequest("No vehicles found. Add vehicles first.");
+            }
 
             foreach (var vehicle in vehicles)
             {
@@ -82,6 +110,10 @@ namespace VehicleTrackerApi.Controllers
             {
                 await _hubContext.Clients.All.SendAsync("VehicleStatusUpdated", updatedVehicle);
             }
+
+            _logger.LogInformation(
+                "Demo tick completed. Updated and broadcast {UpdatedCount} vehicles.",
+                vehicles.Count);
 
             return Ok(new { updated = vehicles.Count });
         }

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using VehicleTrackerApi;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Services;
@@ -29,8 +31,12 @@ builder.Services.AddEndpointsApiExplorer(); // For Swagger/OpenAPI
 builder.Services.AddSwaggerGen();           // Swagger UI generation
 builder.Services.AddSignalR();              // SignalR for real-time communication
 builder.Services.AddHostedService<TelemetryBroadcastService>();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -45,5 +51,11 @@ app.UseCors(MyAllowSpecificOrigins);
 
 app.MapControllers();  // Map controller routes
 app.MapHub<VehicleHub>("/hubs/vehicle");
+
+var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+
+startupLogger.LogInformation(
+    "VehicleTracker API started in {Environment} environment.",
+    app.Environment.EnvironmentName);
 
 app.Run();

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using VehicleTrackerApi.Controllers;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
@@ -83,7 +84,7 @@ namespace VehicleTracker.Tests.Controllers
             await context.SaveChangesAsync();
 
             var hubContext = new TestHubContext(new TestHubClients(new TestClientProxy()));
-            var controller = new VehicleController(context, hubContext);
+            var controller = new VehicleController(context, hubContext, NullLogger<VehicleController>.Instance);
 
             // Act
             var result = await controller.GetVehicleStatus();
@@ -101,7 +102,7 @@ namespace VehicleTracker.Tests.Controllers
             var context = GetInMemoryDbContext();
             var clientProxy = new TestClientProxy();
             var hubContext = new TestHubContext(new TestHubClients(clientProxy));
-            var controller = new VehicleController(context, hubContext);
+            var controller = new VehicleController(context, hubContext, NullLogger<VehicleController>.Instance);
 
             var vehicle = new Vehicle
             {
@@ -131,7 +132,7 @@ namespace VehicleTracker.Tests.Controllers
             // Arrange
             var context = GetInMemoryDbContext();
             var hubContext = new TestHubContext(new TestHubClients(new TestClientProxy()));
-            var controller = new VehicleController(context, hubContext);
+            var controller = new VehicleController(context, hubContext, NullLogger<VehicleController>.Instance);
 
             // Act
             var result = await controller.PostVehicleStatus(null);
