@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Models;
@@ -14,16 +15,19 @@ namespace VehicleTrackerApi.Controllers
         private readonly VehicleTrackerContext _context;
         private readonly IHubContext<VehicleHub> _hubContext;
         private readonly ILogger<VehicleController> _logger;
+        private readonly DemoTickOptions _demoOptions;
         private readonly Random _random = new();
 
         public VehicleController(
             VehicleTrackerContext context,
             IHubContext<VehicleHub> hubContext,
-            ILogger<VehicleController> logger)
+            ILogger<VehicleController> logger,
+            IOptions<DemoTickOptions> demoOptions)
         {
             _context = context;
             _hubContext = hubContext;
             _logger = logger;
+            _demoOptions = demoOptions.Value;
         }
 
         [HttpGet("status")]
@@ -93,9 +97,9 @@ namespace VehicleTrackerApi.Controllers
 
             foreach (var vehicle in vehicles)
             {
-                vehicle.Speed = _random.Next(0, 121);
-                vehicle.FuelLevel = Math.Max(0, vehicle.FuelLevel - _random.NextDouble() * 2);
-                vehicle.EngineHealth = _random.Next(0, 10) > 1 ? "Good" : "Check Engine";
+                vehicle.Speed = _random.Next(0, _demoOptions.MaxSpeedMph + 1);
+                vehicle.FuelLevel = Math.Max(0, vehicle.FuelLevel - _random.NextDouble() * _demoOptions.MaxFuelBurn);
+                vehicle.EngineHealth = _random.NextDouble() < _demoOptions.EngineCheckChance ? "Check Engine" : "Good";
                 vehicle.Timestamp = DateTime.UtcNow;
                 vehicle.Location = new Location
                 {

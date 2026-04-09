@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using VehicleTrackerApi;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
@@ -7,23 +6,10 @@ using VehicleTrackerApi.Services;
 
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 var builder = WebApplication.CreateBuilder(args);
-
-// db context
-builder.Services.AddDbContext<VehicleTrackerContext>(options =>
-    options.UseSqlite("Data Source=vehicles.db"));
-
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: MyAllowSpecificOrigins,
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        });
-});
+var connectionString = builder.Configuration.GetConnectionString("VehicleTracker");
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
 
 // Add services to the container.
 builder.Services.AddControllers();          // Enables controller support
@@ -33,6 +19,27 @@ builder.Services.AddSignalR();              // SignalR for real-time communicati
 builder.Services.AddHostedService<TelemetryBroadcastService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+        policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+});
+
+// DB context
+builder.Services.AddDbContext<VehicleTrackerContext>(options =>
+    options.UseSqlite(connectionString));
+
+// Configure options
+builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection("Telemetry"));
+builder.Services.Configure<DemoTickOptions>(builder.Configuration.GetSection("DemoTick"));
 
 var app = builder.Build();
 
