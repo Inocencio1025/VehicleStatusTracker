@@ -44,28 +44,7 @@ namespace VehicleTrackerApi.Services
                     var vehicles = await context.Vehicles.ToListAsync(stoppingToken);
                     foreach (var vehicle in vehicles)
                     {
-                        var speedDelta = _random.Next(-6, 7);
-                        vehicle.Speed = Math.Clamp(vehicle.Speed + speedDelta, 0, _telemetryOptions.MaxSpeedMph);
-
-                        var fuelBurn = 0.01 + (vehicle.Speed / (double)_telemetryOptions.MaxSpeedMph) * 0.08;
-                        vehicle.FuelLevel = Math.Clamp(vehicle.FuelLevel - fuelBurn, 0, 100);
-
-                        var warningChance = 0.01;
-                        if (vehicle.FuelLevel < _telemetryOptions.WarningFuelThreshold) warningChance += 0.10;
-                        if (vehicle.Speed > _telemetryOptions.HighSpeedWarningThreshold) warningChance += 0.05;
-                        vehicle.EngineHealth = _random.NextDouble() < warningChance ? "Check Engine" : "Good";
-
-                        vehicle.Timestamp = DateTime.UtcNow;
-
-                        var currentLat = vehicle.Location?.Latitude ?? 42.3314;
-                        var currentLng = vehicle.Location?.Longitude ?? -83.0458;
-                        var latStep = (_random.NextDouble() - 0.5) * 0.002;
-                        var lngStep = (_random.NextDouble() - 0.5) * 0.002;
-                        vehicle.Location = new Location
-                        {
-                            Latitude = Math.Clamp(currentLat + latStep, -90, 90),
-                            Longitude = Math.Clamp(currentLng + lngStep, -180, 180)
-                        };
+                        UpdateVehicles(vehicles);
                     }
 
                     _tickCounter++;
@@ -101,6 +80,35 @@ namespace VehicleTrackerApi.Services
             }
 
             _logger.LogInformation("Telemetry broadcast service stopped.");
+        }
+        public void UpdateVehicles(List<Vehicle> vehicles)
+        {
+            foreach (var vehicle in vehicles)
+            {
+                var speedDelta = _random.Next(-6, 7);
+                vehicle.Speed = Math.Clamp(vehicle.Speed + speedDelta, 0, _telemetryOptions.MaxSpeedMph);
+
+                var fuelBurn = 0.01 + (vehicle.Speed / (double)_telemetryOptions.MaxSpeedMph) * 0.08;
+                vehicle.FuelLevel = Math.Clamp(vehicle.FuelLevel - fuelBurn, 0, 100);
+
+                var warningChance = 0.01;
+                if (vehicle.FuelLevel < _telemetryOptions.WarningFuelThreshold) warningChance += 0.10;
+                if (vehicle.Speed > _telemetryOptions.HighSpeedWarningThreshold) warningChance += 0.05;
+                vehicle.EngineHealth = _random.NextDouble() < warningChance ? "Check Engine" : "Good";
+
+                vehicle.Timestamp = DateTime.UtcNow;
+
+                var currentLat = vehicle.Location?.Latitude ?? 42.3314;
+                var currentLng = vehicle.Location?.Longitude ?? -83.0458;
+                var latStep = (_random.NextDouble() - 0.5) * 0.002;
+                var lngStep = (_random.NextDouble() - 0.5) * 0.002;
+
+                vehicle.Location = new Location
+                {
+                    Latitude = Math.Clamp(currentLat + latStep, -90, 90),
+                    Longitude = Math.Clamp(currentLng + lngStep, -180, 180)
+                };
+            }
         }
     }
 }

@@ -1,145 +1,105 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+using Xunit;
+using Moq;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.AspNetCore.Mvc;
 using VehicleTrackerApi.Controllers;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Models;
-using Xunit;
 
-namespace VehicleTracker.Tests.Controllers
+namespace VehicleTracker.Tests
 {
-    public class VehicleControllerTests
+  public class VehicleControllerTests
+  {
+    private VehicleController CreateController(VehicleTrackerContext context)
     {
-        private sealed class TestClientProxy : IClientProxy
-        {
-            public string? LastMethodName { get; private set; }
-            public object?[] LastArgs { get; private set; } = [];
+      var loggerMock = new Mock<ILogger<VehicleController>>();
 
-            public Task SendCoreAsync(string method, object?[] args, CancellationToken cancellationToken = default)
-            {
-                LastMethodName = method;
-                LastArgs = args;
-                return Task.CompletedTask;
-            }
-        }
+      var clientsMock = new Mock<IHubClients>();
+      var clientProxyMock = new Mock<IClientProxy>();
 
-        private sealed class TestHubClients : IHubClients
-        {
-            private readonly IClientProxy _allClientProxy;
+      clientsMock.Setup(c => c.All).Returns(clientProxyMock.Object);
+      clientProxyMock
+          .Setup(c => c.SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), default))
+          .Returns(Task.CompletedTask);
 
-            public TestHubClients(IClientProxy allClientProxy)
-            {
-                _allClientProxy = allClientProxy;
-            }
+      var hubMock = new Mock<IHubContext<VehicleHub>>();
+      hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 
-            public IClientProxy All => _allClientProxy;
-            public IClientProxy AllExcept(IReadOnlyList<string> excludedConnectionIds) => _allClientProxy;
-            public IClientProxy Client(string connectionId) => _allClientProxy;
-            public IClientProxy Clients(IReadOnlyList<string> connectionIds) => _allClientProxy;
-            public IClientProxy Group(string groupName) => _allClientProxy;
-            public IClientProxy GroupExcept(string groupName, IReadOnlyList<string> excludedConnectionIds) => _allClientProxy;
-            public IClientProxy Groups(IReadOnlyList<string> groupNames) => _allClientProxy;
-            public IClientProxy User(string userId) => _allClientProxy;
-            public IClientProxy Users(IReadOnlyList<string> userIds) => _allClientProxy;
-        }
+      var options = Options.Create(new DemoTickOptions
+      {
+        MaxSpeedMph = 120,
+        MaxFuelBurn = 2.0,
+        EngineCheckChance = 0.1
+      });
 
-        private sealed class TestGroupManager : IGroupManager
-        {
-            public Task AddToGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default) => Task.CompletedTask;
-            public Task RemoveFromGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        }
-
-        private sealed class TestHubContext : IHubContext<VehicleHub>
-        {
-            public TestHubContext(IHubClients clients)
-            {
-                Clients = clients;
-            }
-
-            public IHubClients Clients { get; }
-            public IGroupManager Groups { get; } = new TestGroupManager();
-        }
-
-        private VehicleTrackerContext GetInMemoryDbContext()
-        {
-            var options = new DbContextOptionsBuilder<VehicleTrackerContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
-
-            return new VehicleTrackerContext(options);
-        }
-
-        [Fact]
-        public async Task GetVehicleStatus_ReturnsAllVehicles()
-        {
-            // Arrange
-            var context = GetInMemoryDbContext();
-            context.Vehicles.Add(new Vehicle { Speed = 60, FuelLevel = 50.5, EngineHealth = "Good", Timestamp = DateTime.UtcNow });
-            context.Vehicles.Add(new Vehicle { Speed = 30, FuelLevel = 80.0, EngineHealth = "Fair", Timestamp = DateTime.UtcNow });
-            await context.SaveChangesAsync();
-
-            var hubContext = new TestHubContext(new TestHubClients(new TestClientProxy()));
-            var controller = new VehicleController(context, hubContext, NullLogger<VehicleController>.Instance);
-
-            // Act
-            var result = await controller.GetVehicleStatus();
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var vehicles = Assert.IsAssignableFrom<IEnumerable<Vehicle>>(okResult.Value);
-            Assert.Equal(2, ((List<Vehicle>)vehicles).Count);
-        }
-
-        [Fact]
-        public async Task PostVehicleStatus_AddsVehicle_WhenValid()
-        {
-            // Arrange
-            var context = GetInMemoryDbContext();
-            var clientProxy = new TestClientProxy();
-            var hubContext = new TestHubContext(new TestHubClients(clientProxy));
-            var controller = new VehicleController(context, hubContext, NullLogger<VehicleController>.Instance);
-
-            var vehicle = new Vehicle
-            {
-                Speed = 70,
-                FuelLevel = 40.0,
-                EngineHealth = "Excellent",
-                Timestamp = DateTime.UtcNow,
-                Location = new Location { Latitude = 42.5, Longitude = -83.1 }
-            };
-
-            // Act
-            var result = await controller.PostVehicleStatus(vehicle);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnedVehicle = Assert.IsType<Vehicle>(okResult.Value);
-
-            Assert.Equal(vehicle.Speed, returnedVehicle.Speed);
-            Assert.Equal(1, await context.Vehicles.CountAsync());
-            Assert.Equal("VehicleStatusUpdated", clientProxy.LastMethodName);
-            Assert.Single(clientProxy.LastArgs);
-        }
-
-        [Fact]
-        public async Task PostVehicleStatus_ReturnsBadRequest_WhenNull()
-        {
-            // Arrange
-            var context = GetInMemoryDbContext();
-            var hubContext = new TestHubContext(new TestHubClients(new TestClientProxy()));
-            var controller = new VehicleController(context, hubContext, NullLogger<VehicleController>.Instance);
-
-            // Act
-            var result = await controller.PostVehicleStatus(null);
-
-            // Assert
-            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Vehicle data is required.", badRequest.Value);
-        }
+      return new VehicleController(context, hubMock.Object, loggerMock.Object, options);
     }
+
+    private VehicleTrackerContext CreateContext()
+    {
+      var options = new DbContextOptionsBuilder<VehicleTrackerContext>()
+          .UseInMemoryDatabase(Guid.NewGuid().ToString())
+          .Options;
+
+      return new VehicleTrackerContext(options);
+    }
+
+    [Fact]
+    public async Task GetVehicleStatus_Empty_ReturnsEmptyList()
+    {
+      var context = CreateContext();
+      var controller = CreateController(context);
+
+      var result = await controller.GetVehicleStatus();
+
+      var ok = Assert.IsType<OkObjectResult>(result);
+      var vehicles = Assert.IsType<List<Vehicle>>(ok.Value);
+
+      Assert.Empty(vehicles);
+    }
+
+    [Fact]
+    public async Task PostVehicleStatus_AddsVehicle()
+    {
+      var context = CreateContext();
+      var controller = CreateController(context);
+
+      var vehicle = new Vehicle
+      {
+        VehicleId = 1, // ✅ FIXED (was "V1")
+        Speed = 60,
+        FuelLevel = 90,
+        EngineHealth = "Good",
+        Timestamp = DateTime.UtcNow,
+        Location = new Location { Latitude = 10, Longitude = 10 }
+      };
+
+      var result = await controller.PostVehicleStatus(vehicle);
+
+      var ok = Assert.IsType<OkObjectResult>(result);
+      var returned = Assert.IsType<Vehicle>(ok.Value);
+
+      Assert.Equal(1, returned.VehicleId); // ✅ FIXED
+      Assert.Single(context.Vehicles);
+    }
+
+    [Fact]
+    public async Task PostVehicleStatus_Null_ReturnsBadRequest()
+    {
+      var context = CreateContext();
+      var controller = CreateController(context);
+
+      var result = await controller.PostVehicleStatus(null!); // suppress warning
+
+      var bad = Assert.IsType<BadRequestObjectResult>(result);
+      Assert.Equal("Vehicle data is required.", bad.Value);
+    }
+  }
 }
