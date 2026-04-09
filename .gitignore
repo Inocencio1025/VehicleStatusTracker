@@ -416,8 +416,6 @@ node_modules/
 .vscode/
 
 # .NET/Visual Studio
-*.sln
-*.csproj
 *.user
 *.vs/
 
