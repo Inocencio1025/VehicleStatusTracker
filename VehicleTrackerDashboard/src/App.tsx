@@ -39,7 +39,7 @@ export default function App() {
       await fetchVehicles(isMounted);
 
       connection = new signalR.HubConnectionBuilder()
-        .withUrl("http://localhost:5067/hubs/vehicle")
+        .withUrl("http://localhost:8080/hubs/vehicle")
         .withAutomaticReconnect()
         .build();
 
@@ -96,7 +96,7 @@ export default function App() {
   }, []);
 
   function fetchVehicles(isMounted = true){
-    return fetch("http://localhost:5067/api/vehicle/status")
+    return fetch("http://localhost:8080/api/vehicle/status")
       .then(res => res.json())
       .then(data => {
         console.log("Fetched vehicles:", data);

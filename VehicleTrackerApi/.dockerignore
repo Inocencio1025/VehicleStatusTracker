@@ -1,0 +1,26 @@
+# Build output
+bin/
+obj/
+
+# User / IDE files
+*.user
+*.suo
+.vscode/
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Tests (not needed in API image)
+../VehicleTracker.Tests/
+
+# Docs / misc
+*.md
+*.docx
