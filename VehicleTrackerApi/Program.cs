@@ -67,7 +67,11 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<VehicleTrackerContext>();
 
-    db.Database.Migrate();
+    // check here to keep unit tests from breaking
+    if (context.Database.IsRelational())
+    {
+        context.Database.Migrate();
+    }
 
     if (!db.Vehicles.Any())
     {
