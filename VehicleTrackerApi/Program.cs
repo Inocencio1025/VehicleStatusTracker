@@ -12,13 +12,18 @@ var allowedOrigins = builder.Configuration
     .Get<string[]>() ?? Array.Empty<string>();
 
 // Add services to the container.
-builder.Services.AddControllers();          // Enables controller support
-builder.Services.AddEndpointsApiExplorer(); // For Swagger/OpenAPI
-builder.Services.AddSwaggerGen();           // Swagger UI generation
-builder.Services.AddSignalR();              // SignalR for real-time communication
-builder.Services.AddHostedService<TelemetryBroadcastService>();
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// Only run background service outside of tests
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<TelemetryBroadcastService>();
+}
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -33,9 +38,17 @@ builder.Services.AddCors(options =>
         });
 });
 
-// DB context
-builder.Services.AddDbContext<VehicleTrackerContext>(options =>
-    options.UseSqlite(connectionString));
+// ✅ DB context (switch for testing)
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<VehicleTrackerContext>(options =>
+        options.UseInMemoryDatabase("TestDb"));
+}
+else
+{
+    builder.Services.AddDbContext<VehicleTrackerContext>(options =>
+        options.UseSqlite(connectionString));
+}
 
 // Configure options
 builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection("Telemetry"));
@@ -53,10 +66,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseCors(MyAllowSpecificOrigins);
 
-app.MapControllers();  // Map controller routes
+app.MapControllers();
 app.MapHub<VehicleHub>("/hubs/vehicle");
 
 var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
@@ -66,3 +78,5 @@ startupLogger.LogInformation(
     app.Environment.EnvironmentName);
 
 app.Run();
+
+public partial class Program { }

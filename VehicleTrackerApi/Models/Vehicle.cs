@@ -5,7 +5,7 @@ namespace VehicleTrackerApi.Models
         public int VehicleId { get; set; }
         public int Speed { get; set; }
         public double FuelLevel { get; set; }
-        public string EngineHealth { get; set; }
+        public string EngineHealth { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
         public Location Location { get; set; } = new();
 
