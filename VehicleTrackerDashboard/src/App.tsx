@@ -7,6 +7,8 @@ import * as signalR from "@microsoft/signalr";
 // for datetime updates  
 dayjs.extend(relativeTime);
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 type Vehicle = {
   vehicleId: number;
   speed: number;
@@ -39,7 +41,7 @@ export default function App() {
       await fetchVehicles(isMounted);
 
       connection = new signalR.HubConnectionBuilder()
-        .withUrl("http://localhost:8080/hubs/vehicle")
+        .withUrl(`${API_BASE_URL}/hubs/vehicle`)
         .withAutomaticReconnect()
         .build();
 
@@ -96,7 +98,7 @@ export default function App() {
   }, []);
 
   function fetchVehicles(isMounted = true){
-    return fetch("http://localhost:8080/api/vehicle/status")
+      return fetch(`${API_BASE_URL}/api/vehicle/status`)
       .then(res => res.json())
       .then(data => {
         console.log("Fetched vehicles:", data);

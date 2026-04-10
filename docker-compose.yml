@@ -1,0 +1,18 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: VehicleTrackerApi/Dockerfile
+    container_name: vehicle-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+
+  frontend:
+    build: ./VehicleTrackerDashboard
+    container_name: vehicle-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
