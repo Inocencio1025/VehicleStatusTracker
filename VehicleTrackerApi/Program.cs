@@ -14,7 +14,6 @@ var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? Array.Empty<string>();
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -22,13 +21,11 @@ builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-// Only run background service outside of tests
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddHostedService<TelemetryBroadcastService>();
 }
 
-// Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: MyAllowSpecificOrigins,
@@ -41,7 +38,6 @@ builder.Services.AddCors(options =>
         });
 });
 
-// DB context
 if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddDbContext<VehicleTrackerContext>(options =>
@@ -53,24 +49,18 @@ else
         options.UseSqlite(connectionString));
 }
 
-// Configure options
 builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection("Telemetry"));
 builder.Services.Configure<DemoTickOptions>(builder.Configuration.GetSection("DemoTick"));
 
 var app = builder.Build();
 
-
-// =========================
-// DATABASE MIGRATION + SEED
-// =========================
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<VehicleTrackerContext>();
 
-    // check here to keep unit tests from breaking
-    if (context.Database.IsRelational())
+    if (db.Database.IsRelational())
     {
-        context.Database.Migrate();
+        db.Database.Migrate();
     }
 
     if (!db.Vehicles.Any())
@@ -102,7 +92,6 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
