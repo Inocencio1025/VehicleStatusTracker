@@ -3,6 +3,7 @@
 ## Overview
 
 VehicleStatusTracker is a full-stack application that simulates and visualizes live vehicle telemetry data in real time. It generates continuous vehicle updates in the background and displays them instantly on a live dashboard.
+
 ---
 
 ## Why this exists
@@ -32,6 +33,7 @@ Frontend (React + Vite)
 → Background service generates continuous simulated vehicle telemetry
 → Entity Framework Core manages data persistence
 → SQLite stores vehicle state and history
+
 ---
 
 ## Tech Stack
@@ -126,7 +128,6 @@ At this point, I consider this project complete for my current goals. It already
 
 ## Screenshot
 When you get things up and running, the telemetry dashboard should look like this:
- 
 
 ## Status
 Completed (no active development planned)
