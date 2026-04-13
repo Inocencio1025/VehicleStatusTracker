@@ -40,13 +40,10 @@ namespace VehicleTrackerApi.Services
                 {
                     using var scope = _services.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<VehicleTrackerContext>();
-
                     var vehicles = await context.Vehicles.ToListAsync(stoppingToken);
-                    foreach (var vehicle in vehicles)
-                    {
-                        UpdateVehicles(vehicles);
-                    }
-
+                    
+                    UpdateVehicles(vehicles);
+        
                     _tickCounter++;
                     if (vehicles.Count > 0)
                     {
@@ -81,6 +78,13 @@ namespace VehicleTrackerApi.Services
 
             _logger.LogInformation("Telemetry broadcast service stopped.");
         }
+
+        /*  
+            I orginally wrote this function to randomize the values, 
+            but for the sake of realism and the fact that i didnt want 
+            to take so long figuring out how to produce realistic values, 
+            this method was made by ai to produce realistic values.
+        */
         public void UpdateVehicles(List<Vehicle> vehicles)
         {
             foreach (var vehicle in vehicles)

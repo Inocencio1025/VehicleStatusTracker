@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: VehicleTrackerApi/Dockerfile
+      dockerfile: src/VehicleTrackerApi/Dockerfile
     container_name: vehicle-backend
     ports:
       - "8080:8080"
@@ -10,7 +10,10 @@ services:
       - ASPNETCORE_URLS=http://+:8080
 
   frontend:
-    build: ./VehicleTrackerDashboard
+    build:
+      context: ./src/VehicleTrackerDashboard
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
     container_name: vehicle-frontend
     ports:
       - "5173:80"

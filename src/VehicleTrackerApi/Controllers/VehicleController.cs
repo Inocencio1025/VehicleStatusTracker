@@ -83,6 +83,7 @@ namespace VehicleTrackerApi.Controllers
             return Ok(vehicle);
         }
 
+        // This endpoint is for demo purposes to simulate vehicle status updates.
         [HttpPost("demo-tick")]
         public async Task<IActionResult> DemoTick()
         {

@@ -21,7 +21,7 @@ This project was built primarily as a learning exercise and to strengthen my bac
 
 - Real-time vehicle telemetry dashboard with live updates
 - Simulated vehicle data stream for realistic tracking
-- REST API for vehicle data  
+- REST API + SignalR for real-time vehicle updates  
 - Interactive React + Vite dashboard 
 - Persistent data storage 
 - Automated testing
@@ -66,7 +66,7 @@ DevOps / Tooling
 ## Running with Docker
 
 ```bash
-docker compose up -–build
+docker compose up --build
 ```
 - Frontend: http://localhost:5173 
 - Backend: http://localhost:8080  

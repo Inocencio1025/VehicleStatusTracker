@@ -4,16 +4,19 @@ using VehicleTrackerApi.Models;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Services;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 
+// CORS policy name
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 var builder = WebApplication.CreateBuilder(args);
 
+// Load configuration (from appsettings.json)
 var connectionString = builder.Configuration.GetConnectionString("VehicleTracker");
-
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? Array.Empty<string>();
 
+// Add services to the container (DI)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -21,11 +24,18 @@ builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// Configuration for options pattern
+builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection("Telemetry"));
+builder.Services.Configure<DemoTickOptions>(builder.Configuration.GetSection("DemoTick"));
+
+// Prevents telemetry broadcasting during tests because app uses 
+// 2 different databases (in-memory for tests, SQLite for dev/prod) 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddHostedService<TelemetryBroadcastService>();
 }
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: MyAllowSpecificOrigins,
@@ -38,6 +48,8 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Database configuration
+// Use in-memory database for testing, otherwise use SQLite
 if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddDbContext<VehicleTrackerContext>(options =>
@@ -49,11 +61,9 @@ else
         options.UseSqlite(connectionString));
 }
 
-builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection("Telemetry"));
-builder.Services.Configure<DemoTickOptions>(builder.Configuration.GetSection("DemoTick"));
-
 var app = builder.Build();
 
+// Apply migrations and seed data
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<VehicleTrackerContext>();
@@ -63,6 +73,7 @@ using (var scope = app.Services.CreateScope())
         db.Database.Migrate();
     }
 
+    // Seed initial data if the database is empty
     if (!db.Vehicles.Any())
     {
         var random = new Random();
