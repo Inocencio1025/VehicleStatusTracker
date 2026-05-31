@@ -1,10 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using VehicleTrackerApi.Data;
+using VehicleTrackerApi.Dtos;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Models;
+using VehicleTrackerApi.Services;
 
 namespace VehicleTrackerApi.Controllers
 {
@@ -16,30 +20,57 @@ namespace VehicleTrackerApi.Controllers
         private readonly IHubContext<VehicleHub> _hubContext;
         private readonly ILogger<VehicleController> _logger;
         private readonly DemoTickOptions _demoOptions;
+        private readonly AuthService _authService;
         private readonly Random _random = new();
 
         public VehicleController(
             VehicleTrackerContext context,
             IHubContext<VehicleHub> hubContext,
             ILogger<VehicleController> logger,
-            IOptions<DemoTickOptions> demoOptions)
+            IOptions<DemoTickOptions> demoOptions,
+            AuthService authService)
         {
             _context = context;
             _hubContext = hubContext;
             _logger = logger;
             _demoOptions = demoOptions.Value;
+            _authService = authService;
         }
 
-        [HttpGet("status")]
-        public async Task<IActionResult> GetVehicleStatus()
+        [HttpPost("register")]
+        public async Task<IActionResult> PostUser([FromBody] RegisterRequest registerRequest)
         {
-            var vehicles = await _context.Vehicles.ToListAsync();
-            _logger.LogInformation(
-                "Returned vehicle status list with {VehicleCount} vehicle(s).",
-                vehicles.Count);
-            return Ok(vehicles);
+            if (registerRequest == null)
+            {
+                _logger.LogWarning("User payload was null.");
+                return BadRequest("User data is required.");
+            }
+
+            User user = new User{
+                Email = registerRequest.Email,
+                Username = registerRequest.Username,
+                PasswordHash = registerRequest.Password,
+            };
+
+
+            Result result = await _authService.AddUser(user);
+
+
+            return Ok(new { result });
         }
 
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginRequest loginRequest)
+        {
+            User? user = await _authService.Authenticate(loginRequest);
+
+            if (user == null) return Unauthorized();
+
+            string token = _authService.CreateToken(user);
+            return Ok(new { token });
+        }
+
+        [Authorize]
         [HttpPost("status")]
         public async Task<IActionResult> PostVehicleStatus([FromBody] Vehicle vehicle)
         {
@@ -83,6 +114,16 @@ namespace VehicleTrackerApi.Controllers
             return Ok(vehicle);
         }
 
+        [HttpGet("status")]
+        public async Task<IActionResult> GetVehicleStatus()
+        {
+            var vehicles = await _context.Vehicles.ToListAsync();
+            _logger.LogInformation(
+                "Returned vehicle status list with {VehicleCount} vehicle(s).",
+                vehicles.Count);
+            return Ok(vehicles);
+        }
+
         // This endpoint is for demo purposes to simulate vehicle status updates.
         [HttpPost("demo-tick")]
         public async Task<IActionResult> DemoTick()
@@ -115,7 +156,7 @@ namespace VehicleTrackerApi.Controllers
             {
                 await _hubContext.Clients.All.SendAsync("VehicleStatusUpdated", updatedVehicle);
             }
-
+            
             _logger.LogInformation(
                 "Demo tick completed. Updated and broadcast {UpdatedCount} vehicles.",
                 vehicles.Count);

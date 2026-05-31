@@ -1,13 +1,16 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using VehicleTrackerApi;
 using VehicleTrackerApi.Models;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Services;
-using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 
 // CORS policy name
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Load configuration (from appsettings.json)
@@ -15,6 +18,8 @@ var connectionString = builder.Configuration.GetConnectionString("VehicleTracker
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? Array.Empty<string>();
+
+var jwtKey = builder.Configuration["Jwt:Key"];
 
 // Add services to the container (DI)
 builder.Services.AddControllers();
@@ -24,16 +29,37 @@ builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// JWT Authentication
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtKey!)
+            )
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 // Configuration for options pattern
 builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection("Telemetry"));
 builder.Services.Configure<DemoTickOptions>(builder.Configuration.GetSection("DemoTick"));
 
-// Prevents telemetry broadcasting during tests because app uses 
-// 2 different databases (in-memory for tests, SQLite for dev/prod) 
+// Prevents telemetry broadcasting during tests
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddHostedService<TelemetryBroadcastService>();
 }
+
+// Services
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<PasswordService>();
 
 // CORS
 builder.Services.AddCors(options =>
@@ -49,7 +75,6 @@ builder.Services.AddCors(options =>
 });
 
 // Database configuration
-// Use in-memory database for testing, otherwise use SQLite
 if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddDbContext<VehicleTrackerContext>(options =>
@@ -73,11 +98,9 @@ using (var scope = app.Services.CreateScope())
         db.Database.Migrate();
     }
 
-    // Seed initial data if the database is empty
     if (!db.Vehicles.Any())
     {
         var random = new Random();
-
         var vehicles = new List<Vehicle>();
 
         for (int i = 0; i < 12; i++)
@@ -110,7 +133,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 app.UseCors(MyAllowSpecificOrigins);
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<VehicleHub>("/hubs/vehicle");

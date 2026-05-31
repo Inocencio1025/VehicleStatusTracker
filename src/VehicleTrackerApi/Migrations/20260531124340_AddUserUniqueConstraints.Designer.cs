@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VehicleTrackerApi.Data;
 
@@ -10,9 +11,11 @@ using VehicleTrackerApi.Data;
 namespace VehicleTrackerApi.Migrations
 {
     [DbContext(typeof(VehicleTrackerContext))]
-    partial class VehicleTrackerContextModelSnapshot : ModelSnapshot
+    [Migration("20260531124340_AddUserUniqueConstraints")]
+    partial class AddUserUniqueConstraints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.8");

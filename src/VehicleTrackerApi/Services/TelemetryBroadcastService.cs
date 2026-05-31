@@ -52,7 +52,7 @@ namespace VehicleTrackerApi.Services
                         {
                             await _hubContext.Clients.All.SendAsync("VehicleStatusUpdated", vehicle, stoppingToken);
                         }
-
+                        /*
                         if (_tickCounter % 10 == 0)
                         {
                             _logger.LogInformation(
@@ -60,12 +60,7 @@ namespace VehicleTrackerApi.Services
                                 _tickCounter,
                                 vehicles.Count);
                         }
-                    }
-                    else if (_tickCounter % 10 == 0)
-                    {
-                        _logger.LogInformation(
-                            "Telemetry tick {Tick}: no vehicles found to update.",
-                            _tickCounter);
+                        */
                     }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
