@@ -5,72 +5,26 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using VehicleTrackerApi.Data;
-using VehicleTrackerApi.Dtos;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Models;
-using VehicleTrackerApi.Services;
 
 namespace VehicleTrackerApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class VehicleController : ControllerBase
+    public class VehicleController(
+        VehicleTrackerContext context,
+        IHubContext<VehicleHub> hubContext,
+        ILogger<VehicleController> logger,
+        IOptions<DemoTickOptions> demoOptions) : ControllerBase
     {
-        private readonly VehicleTrackerContext _context;
-        private readonly IHubContext<VehicleHub> _hubContext;
-        private readonly ILogger<VehicleController> _logger;
-        private readonly DemoTickOptions _demoOptions;
-        private readonly AuthService _authService;
+        private readonly VehicleTrackerContext _context = context;
+        private readonly IHubContext<VehicleHub> _hubContext = hubContext;
+        private readonly ILogger<VehicleController> _logger = logger;
+        private readonly DemoTickOptions _demoOptions = demoOptions.Value;
         private readonly Random _random = new();
 
-        public VehicleController(
-            VehicleTrackerContext context,
-            IHubContext<VehicleHub> hubContext,
-            ILogger<VehicleController> logger,
-            IOptions<DemoTickOptions> demoOptions,
-            AuthService authService)
-        {
-            _context = context;
-            _hubContext = hubContext;
-            _logger = logger;
-            _demoOptions = demoOptions.Value;
-            _authService = authService;
-        }
-
-        [HttpPost("register")]
-        public async Task<IActionResult> PostUser([FromBody] RegisterRequest registerRequest)
-        {
-            if (registerRequest == null)
-            {
-                _logger.LogWarning("User payload was null.");
-                return BadRequest("User data is required.");
-            }
-
-            User user = new User{
-                Email = registerRequest.Email,
-                Username = registerRequest.Username,
-                PasswordHash = registerRequest.Password,
-            };
-
-
-            Result result = await _authService.AddUser(user);
-
-
-            return Ok(new { result });
-        }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginRequest loginRequest)
-        {
-            User? user = await _authService.Authenticate(loginRequest);
-
-            if (user == null) return Unauthorized();
-
-            string token = _authService.CreateToken(user);
-            return Ok(new { token });
-        }
-
-        [Authorize]
+    [Authorize]
         [HttpPost("status")]
         public async Task<IActionResult> PostVehicleStatus([FromBody] Vehicle vehicle)
         {
