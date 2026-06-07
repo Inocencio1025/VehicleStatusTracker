@@ -1,23 +1,24 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace VehicleTrackerApi.Hubs
 {
-    public class VehicleHub : Hub
+    [Authorize]
+    public class VehicleHub(ILogger<VehicleHub> logger) : Hub
     {
-        private readonly ILogger<VehicleHub> _logger;
+        private readonly ILogger<VehicleHub> _logger = logger;
 
-        public VehicleHub(ILogger<VehicleHub> logger)
-        {
-            _logger = logger;
-        }
-
-        public override async Task OnConnectedAsync()
+    public override async Task OnConnectedAsync()
         {
             _logger.LogInformation(
                 "SignalR client connected. ConnectionId {ConnectionId}.",
                 Context.ConnectionId);
+            _logger.LogInformation(
+                "Connected user {User}",
+                Context.UserIdentifier
+            );
             await base.OnConnectedAsync();
-        }
+        } 
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {

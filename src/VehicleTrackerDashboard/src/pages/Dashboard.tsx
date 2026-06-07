@@ -8,9 +8,12 @@ import * as signalR from "@microsoft/signalr";
 dayjs.extend(relativeTime);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
- 
-type Vehicle = {
+
+type VehicleStatus = {
   vehicleId: number;
+  make: string;
+  model: string;
+  year: number;
   speed: number;
   fuelLevel: number;
   engineHealth: string;
@@ -23,7 +26,7 @@ type Vehicle = {
 
 export default function Dashboard() {
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [statuses, setStatuses] = useState<VehicleStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [sortBy, setSortBy] = useState('');
@@ -35,11 +38,12 @@ export default function Dashboard() {
 
     const setup = async () => {
       setIsLoading(true);
-      await fetchVehicles(isMounted);
+      await fetchStatuses(isMounted);
 
       connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${API_BASE_URL}/hubs/vehicle`)
-        .withAutomaticReconnect()
+        .withUrl(`${API_BASE_URL}/hubs/vehicle`, {
+          accessTokenFactory: () => localStorage.getItem("token") ?? ""
+        }).withAutomaticReconnect()
         .build();
 
       connection.onreconnecting(() => {
@@ -57,19 +61,18 @@ export default function Dashboard() {
         setConnectionStatus('disconnected');
       });
 
-      connection.on("VehicleStatusUpdated", (updatedVehicle: Vehicle) => {
+
+      connection.on("VehicleStatusUpdated", (updated: VehicleStatus) => {
         if (!isMounted) return;
 
-        setVehicles(prevVehicles => {
-          
-          const existingIndex = prevVehicles.findIndex(v => v.vehicleId === updatedVehicle.vehicleId);
-          if (existingIndex === -1) {
-            return [...prevVehicles, updatedVehicle];
-          }
+        setStatuses(prev => {
+          const idx = prev.findIndex(v => v.vehicleId === updated.vehicleId);
 
-          const next = [...prevVehicles];
-          next[existingIndex] = updatedVehicle;
-          return next;
+          if (idx === -1) return [...prev, updated];
+
+          const copy = [...prev];
+          copy[idx] = updated;
+          return copy;
         });
       });
 
@@ -95,34 +98,51 @@ export default function Dashboard() {
 
   }, []);
 
-  function fetchVehicles(isMounted = true){
-      return fetch(`${API_BASE_URL}/api/vehicle/status`)
-      .then(res => res.json())
-      .then(data => {
-        console.log("Fetched vehicles:", data);
-        if (!isMounted) return;   //check if component is still up
-        setVehicles(data);
-        setError(false);
-        setIsLoading(false); 
-      })
-      .catch(err => {
-        console.error("Fetch error:", err);
-        if (!isMounted) return;   //check if component is still up
-        setError(true);       
-        setIsLoading(false); 
+  async function fetchStatuses(isMounted = true) {
+    const token = localStorage.getItem("token");
+    console.log("TOKEN:", token);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/vehicle/status`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+
+      console.log("STATUS:", res.status);
+
+      if (!res.ok) {
+        throw new Error(`HTTP error ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      console.log("Fetched statuses:", data);
+
+      if (!isMounted) return;
+
+      setStatuses(data);
+      setError(false);
+    } catch (err) {
+      console.error("Fetch error:", err);
+
+      if (!isMounted) return;
+
+      setError(true);
+    } finally {
+      if (isMounted) setIsLoading(false);
+    }
   }
 
-  const sortedVehicles = [...vehicles].sort((a, b) => {
-  if (sortBy === 'id') {
-    return a.vehicleId - b.vehicleId;
-  } else if (sortBy === 'speed') {
-    return b.speed - a.speed; // descending
-  } else if (sortBy === 'fuel') {
-    return b.fuelLevel - a.fuelLevel; // descending
-  }
-  return 0;
-});
+  const sortedStatuses = [...statuses].sort((a, b) => {
+    if (sortBy === 'id') {
+      return a.vehicleId - b.vehicleId;
+    } else if (sortBy === 'speed') {
+      return b.speed - a.speed; // descending
+    } else if (sortBy === 'fuel') {
+      return b.fuelLevel - a.fuelLevel; // descending
+    }
+    return 0;
+  });
 
 
   const getFuelColor = (level: number) => {
@@ -144,70 +164,88 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
+
         <div className="flex items-center justify-between mb-6">
-          <div className="mb-6">
+          <div>
             <h1 className="text-3xl font-bold">Vehicle Status</h1>
-            <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${connectionBadgeStyles[connectionStatus]}`}>
+            <span
+              className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${connectionBadgeStyles[connectionStatus]
+                }`}
+            >
               {connectionStatus}
             </span>
           </div>
+
           <select
             className="bg-gray-800 text-white p-2 rounded mx-5"
             onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="">Sort By</option>
-              <option value="id">Vehicle ID</option>
-              <option value="speed">Speed</option>
-              <option value="fuel">Fuel Level</option>
-            </select>
+          >
+            <option value="">Sort By</option>
+            <option value="id">Vehicle ID</option>
+            <option value="speed">Speed</option>
+            <option value="fuel">Fuel Level</option>
+          </select>
         </div>
 
-        {isLoading && 
+        {isLoading && (
           <div className="flex justify-center">
             <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-blue-500"></div>
           </div>
-        }
+        )}
 
         {error && <p className="text-red-500">Failed to load vehicle data.</p>}
 
-        {!isLoading && !error && sortedVehicles.map((vehicle) => (
-          <div
-            key={vehicle.vehicleId}
-            className="bg-gray-800 rounded-xl p-6 shadow shadow-gray-700 hover:shadow-2xl hover:shadow-black transition-shadow duration-300"
-          >
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-xl font-semibold">
-                Vehicle #{vehicle.vehicleId}
-              </h2>
-              <span
-                className={`px-5 py-1 ml-5 h rounded-full text-sm font-medium ${
-                  vehicle.engineHealth === "Good"
+        {!isLoading &&
+          !error &&
+          sortedStatuses.map((status) => (
+            <div
+              key={status.vehicleId}
+              className="bg-gray-800 rounded-xl p-6 shadow shadow-gray-700 hover:shadow-2xl hover:shadow-black transition-shadow duration-300"
+            >
+              {/* HEADER */}
+              <div className="flex justify-between items-start mb-2 gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-semibold">
+                    Vehicle #{status.vehicleId}
+                  </h2>
+
+                  <p className="text-sm text-gray-400">
+                    {status.make} {status.model} • {status.year}
+                  </p>
+                </div>
+
+                <span
+                  className={`shrink-0 px-3 py-1 rounded-full text-sm font-medium ${status.engineHealth === "Good"
                     ? "bg-green-600"
                     : "bg-yellow-500"
-                }`}
-              >
-                {vehicle.engineHealth}
-              </span>
-            </div>
-
-            <p>Speed: {vehicle.speed} mph</p>
-            <p>Fuel Level: {vehicle.fuelLevel.toFixed(1)}%</p>
-            <div className="bg-gray-800 h-3 w-full">
-                <div 
-                  className={`h-full rounded ${getFuelColor(vehicle.fuelLevel)}`}
-                  style={{width: `${vehicle.fuelLevel}%` }}
+                    }`}
                 >
-                </div>
+                  {status.engineHealth}
+                </span>
+              </div>
+
+              {/* BODY */}
+              <p>Speed: {status.speed} mph</p>
+
+              <p>Fuel Level: {status.fuelLevel.toFixed(1)}%</p>
+
+              <div className="bg-gray-800 h-3 w-full">
+                <div
+                  className={`h-full rounded ${getFuelColor(status.fuelLevel)}`}
+                  style={{ width: `${status.fuelLevel}%` }}
+                />
+              </div>
+
+              <p>
+                Location: {status.location.latitude.toFixed(3)},{" "}
+                {status.location.longitude.toFixed(3)}
+              </p>
+
+              <p className="text-sm text-gray-400 mt-2">
+                Last updated: {dayjs(status.timestamp).fromNow()}
+              </p>
             </div>
-            <p>
-              Location: {vehicle.location.latitude.toFixed(3)},{" "}
-              {vehicle.location.longitude.toFixed(3)}
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Last updated: {dayjs(vehicle.timestamp).fromNow()}
-            </p>
-          </div>
-        ))}
+          ))}
       </div>
     </div>
   );

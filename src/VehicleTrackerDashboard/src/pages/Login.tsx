@@ -23,7 +23,7 @@ export default function Login() {
   }
 
   async function registerUser() {
-    const response = await fetch(`${API_BASE_URL}/api/vehicle/register`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -42,7 +42,7 @@ export default function Login() {
   }
 
   async function loginUser() {
-    const response = await fetch(`${API_BASE_URL}/api/vehicle/login`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -51,17 +51,19 @@ export default function Login() {
         username: username,
         password: password
       })
-    })
+    });
 
-
-    if (response.ok) {
-      localStorage.setItem("token", response.json.toString());
-      navigate("/dashboard");
-    } else {
+    if (!response.ok) {
       setInvalid(true);
       setUserCreated(false);
+      return;
     }
 
+    const data = await response.json();
+
+    localStorage.setItem("token", data.token); 
+
+    navigate("/dashboard");
   }
 
   return (
@@ -82,7 +84,7 @@ export default function Login() {
             Invalid Username or Password
           </h3>
         )}
-                
+
         {(userCreated && !isRegister) && (
           <h3 className="text-green-500 text-center">
             User Created

@@ -57,10 +57,10 @@ namespace VehicleTracker.Tests
       var context = CreateContext();
       var controller = CreateController(context);
 
-      var result = await controller.GetVehicleStatus();
+      var result = await controller.GetVehicleStatuses();
 
       var ok = Assert.IsType<OkObjectResult>(result);
-      var vehicles = Assert.IsType<List<Vehicle>>(ok.Value);
+      var vehicles = Assert.IsType<List<VehicleStatus>>(ok.Value);
 
       Assert.Empty(vehicles);
     }
@@ -71,7 +71,7 @@ namespace VehicleTracker.Tests
       var context = CreateContext();
       var controller = CreateController(context);
 
-      var vehicle = new Vehicle
+      var vehicle = new VehicleStatus
       {
         VehicleId = 1, // ✅ FIXED (was "V1")
         Speed = 60,
@@ -84,7 +84,7 @@ namespace VehicleTracker.Tests
       var result = await controller.PostVehicleStatus(vehicle);
 
       var ok = Assert.IsType<OkObjectResult>(result);
-      var returned = Assert.IsType<Vehicle>(ok.Value);
+      var returned = Assert.IsType<VehicleStatus>(ok.Value);
 
       Assert.Equal(1, returned.VehicleId); // ✅ FIXED
       Assert.Single(context.Vehicles);
@@ -96,7 +96,7 @@ namespace VehicleTracker.Tests
       var context = CreateContext();
       var controller = CreateController(context);
 
-      var result = await controller.PostVehicleStatus(null!); // suppress warning
+      var result = await controller.CreateVehicleStatus(null!); // suppress warning
 
       var bad = Assert.IsType<BadRequestObjectResult>(result);
       Assert.Equal("Vehicle data is required.", bad.Value);

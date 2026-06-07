@@ -16,9 +16,9 @@ namespace VehicleTracker.Tests
     public void UpdateVehicles_UpdatesVehicleProperties()
     {
       // Arrange
-      var vehicles = new List<Vehicle>
+      var vehicles = new List<VehicleStatus>
             {
-                new Vehicle
+                new VehicleStatus
                 {
                     VehicleId = 1,
                     Speed = 50,

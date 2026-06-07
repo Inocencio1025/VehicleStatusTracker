@@ -48,7 +48,41 @@ namespace VehicleTrackerApi.Migrations
 
             modelBuilder.Entity("VehicleTrackerApi.Models.Vehicle", b =>
                 {
-                    b.Property<int>("VehicleId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Make")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("VIN")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VIN")
+                        .IsUnique();
+
+                    b.ToTable("Vehicles");
+                });
+
+            modelBuilder.Entity("VehicleTrackerApi.Models.VehicleStatus", b =>
+                {
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
@@ -65,16 +99,38 @@ namespace VehicleTrackerApi.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("TEXT");
 
-                    b.HasKey("VehicleId");
+                    b.Property<int>("VehicleId")
+                        .HasColumnType("INTEGER");
 
-                    b.ToTable("Vehicles");
+                    b.HasKey("Id");
+
+                    b.HasIndex("VehicleId");
+
+                    b.ToTable("VehicleStatuses");
                 });
 
             modelBuilder.Entity("VehicleTrackerApi.Models.Vehicle", b =>
                 {
+                    b.HasOne("VehicleTrackerApi.Models.User", "User")
+                        .WithMany("Vehicles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("VehicleTrackerApi.Models.VehicleStatus", b =>
+                {
+                    b.HasOne("VehicleTrackerApi.Models.Vehicle", "Vehicle")
+                        .WithMany("VehicleStatuses")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsOne("VehicleTrackerApi.Models.Location", "Location", b1 =>
                         {
-                            b1.Property<int>("VehicleId")
+                            b1.Property<int>("VehicleStatusId")
                                 .HasColumnType("INTEGER");
 
                             b1.Property<double>("Latitude")
@@ -83,16 +139,28 @@ namespace VehicleTrackerApi.Migrations
                             b1.Property<double>("Longitude")
                                 .HasColumnType("REAL");
 
-                            b1.HasKey("VehicleId");
+                            b1.HasKey("VehicleStatusId");
 
-                            b1.ToTable("Vehicles");
+                            b1.ToTable("VehicleStatuses");
 
                             b1.WithOwner()
-                                .HasForeignKey("VehicleId");
+                                .HasForeignKey("VehicleStatusId");
                         });
 
                     b.Navigation("Location")
                         .IsRequired();
+
+                    b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("VehicleTrackerApi.Models.User", b =>
+                {
+                    b.Navigation("Vehicles");
+                });
+
+            modelBuilder.Entity("VehicleTrackerApi.Models.Vehicle", b =>
+                {
+                    b.Navigation("VehicleStatuses");
                 });
 #pragma warning restore 612, 618
         }

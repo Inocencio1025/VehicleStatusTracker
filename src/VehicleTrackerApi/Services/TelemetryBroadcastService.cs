@@ -4,34 +4,26 @@ using Microsoft.Extensions.Options;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Hubs;
 using VehicleTrackerApi.Models;
+using VehicleTrackerApi.Dtos;
 
 namespace VehicleTrackerApi.Services
 {
-    public class TelemetryBroadcastService : BackgroundService
+    public class TelemetryBroadcastService(
+        IServiceProvider services,
+        IHubContext<VehicleHub> hubContext,
+        ILogger<TelemetryBroadcastService> logger,
+        IOptions<TelemetryOptions> telemetryOptions) : BackgroundService
     {
-        private readonly IServiceProvider _services;
-        private readonly IHubContext<VehicleHub> _hubContext;
-        private readonly ILogger<TelemetryBroadcastService> _logger;
-        private readonly TelemetryOptions _telemetryOptions;
+        private readonly IServiceProvider _services = services;
+        private readonly IHubContext<VehicleHub> _hubContext = hubContext;
+        private readonly ILogger<TelemetryBroadcastService> _logger = logger;
+        private readonly TelemetryOptions _telemetryOptions = telemetryOptions.Value;
         private readonly Random _random = new();
-        private int _tickCounter;
-
-        public TelemetryBroadcastService(
-            IServiceProvider services,
-            IHubContext<VehicleHub> hubContext,
-            ILogger<TelemetryBroadcastService> logger,
-            IOptions<TelemetryOptions> telemetryOptions)
-        {
-            _services = services;
-            _hubContext = hubContext;
-            _logger = logger;
-            _telemetryOptions = telemetryOptions.Value;
-        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                "Telemetry broadcast service started with interval {IntervalSeconds}s.",
+                "Telemetry service started (interval: {Interval}s)",
                 _telemetryOptions.TickIntervalSeconds);
 
             while (!stoppingToken.IsCancellationRequested)
@@ -40,74 +32,104 @@ namespace VehicleTrackerApi.Services
                 {
                     using var scope = _services.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<VehicleTrackerContext>();
-                    var vehicles = await context.Vehicles.ToListAsync(stoppingToken);
-                    
-                    UpdateVehicles(vehicles);
-        
-                    _tickCounter++;
-                    if (vehicles.Count > 0)
+
+                    // Get latest per vehicle (WITH navigation loaded)
+                    var latestStatuses = await context.VehicleStatuses
+                        .Include(vs => vs.Vehicle)
+                        .GroupBy(vs => vs.VehicleId)
+                        .Select(g => g.OrderByDescending(x => x.Timestamp).First())
+                        .ToListAsync(stoppingToken);
+
+                    var newStatuses = new List<VehicleStatus>();
+
+                    foreach (var status in latestStatuses)
                     {
-                        await context.SaveChangesAsync(stoppingToken);
-                        foreach (var vehicle in vehicles)
-                        {
-                            await _hubContext.Clients.All.SendAsync("VehicleStatusUpdated", vehicle, stoppingToken);
-                        }
-                        /*
-                        if (_tickCounter % 10 == 0)
-                        {
-                            _logger.LogInformation(
-                                "Telemetry tick {Tick}: updated and broadcast {VehicleCount} vehicles.",
-                                _tickCounter,
-                                vehicles.Count);
-                        }
-                        */
+                        var newStatus = GenerateNextStatus(status);
+                        newStatuses.Add(newStatus);
+
+                        context.VehicleStatuses.Add(newStatus);
                     }
+
+                    await context.SaveChangesAsync(stoppingToken);
+
+                    // reload with Vehicle included (important for DTO mapping)
+                    var savedStatuses = await context.VehicleStatuses
+                        .Include(vs => vs.Vehicle)
+                        .Where(vs => newStatuses.Select(n => n.Id).Contains(vs.Id))
+                        .ToListAsync(stoppingToken);
+
+                    foreach (var vs in savedStatuses)
+                    {
+                        var dto = new VehicleStatusDto(
+                            vs.VehicleId,
+                            vs.Vehicle.Make,
+                            vs.Vehicle.Model,
+                            vs.Vehicle.Year,
+                            vs.Speed,
+                            vs.FuelLevel,
+                            vs.EngineHealth,
+                            vs.Timestamp,
+                            vs.Location
+                        );
+
+                        await _hubContext.Clients
+                            .User(vs.Vehicle.UserId.ToString())
+                            .SendAsync(
+                                "VehicleStatusUpdated",
+                                dto,
+                                stoppingToken);
+                    }
+
+                    _logger.LogInformation(
+                        "Telemetry tick complete. Updated {Count} vehicles.",
+                        newStatuses.Count);
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     _logger.LogError(ex, "Telemetry tick failed.");
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(_telemetryOptions.TickIntervalSeconds), stoppingToken);
+                await Task.Delay(
+                    TimeSpan.FromSeconds(_telemetryOptions.TickIntervalSeconds),
+                    stoppingToken);
             }
-
-            _logger.LogInformation("Telemetry broadcast service stopped.");
         }
 
-        /*  
-            I orginally wrote this function to randomize the values, 
-            but for the sake of realism and the fact that i didnt want 
-            to take so long figuring out how to produce realistic values, 
-            this method was made by ai to produce realistic values.
-        */
-        public void UpdateVehicles(List<Vehicle> vehicles)
+        private VehicleStatus GenerateNextStatus(VehicleStatus previous)
         {
-            foreach (var vehicle in vehicles)
+            var speedDelta = _random.Next(-6, 7);
+
+            var speed = Math.Clamp(
+                previous.Speed + speedDelta,
+                0,
+                _telemetryOptions.MaxSpeedMph);
+
+            var fuelBurn =
+                0.01 + (speed / (double)_telemetryOptions.MaxSpeedMph) * 0.08;
+
+            var fuel = Math.Clamp(previous.FuelLevel - fuelBurn, 0, 100);
+
+            var warningChance = 0.01;
+            if (fuel < _telemetryOptions.WarningFuelThreshold) warningChance += 0.10;
+            if (speed > _telemetryOptions.HighSpeedWarningThreshold) warningChance += 0.05;
+
+            return new VehicleStatus
             {
-                var speedDelta = _random.Next(-6, 7);
-                vehicle.Speed = Math.Clamp(vehicle.Speed + speedDelta, 0, _telemetryOptions.MaxSpeedMph);
-
-                var fuelBurn = 0.01 + (vehicle.Speed / (double)_telemetryOptions.MaxSpeedMph) * 0.08;
-                vehicle.FuelLevel = Math.Clamp(vehicle.FuelLevel - fuelBurn, 0, 100);
-
-                var warningChance = 0.01;
-                if (vehicle.FuelLevel < _telemetryOptions.WarningFuelThreshold) warningChance += 0.10;
-                if (vehicle.Speed > _telemetryOptions.HighSpeedWarningThreshold) warningChance += 0.05;
-                vehicle.EngineHealth = _random.NextDouble() < warningChance ? "Check Engine" : "Good";
-
-                vehicle.Timestamp = DateTime.UtcNow;
-
-                var currentLat = vehicle.Location?.Latitude ?? 42.3314;
-                var currentLng = vehicle.Location?.Longitude ?? -83.0458;
-                var latStep = (_random.NextDouble() - 0.5) * 0.002;
-                var lngStep = (_random.NextDouble() - 0.5) * 0.002;
-
-                vehicle.Location = new Location
+                VehicleId = previous.VehicleId,
+                Speed = speed,
+                Location = new Location
                 {
-                    Latitude = Math.Clamp(currentLat + latStep, -90, 90),
-                    Longitude = Math.Clamp(currentLng + lngStep, -180, 180)
-                };
-            }
+                    Latitude = Math.Clamp(
+                        (previous.Location?.Latitude ?? 42.3314) + (_random.NextDouble() - 0.5) * 0.002,
+                        -90, 90),
+                    Longitude = Math.Clamp(
+                        (previous.Location?.Longitude ?? -83.0458) + (_random.NextDouble() - 0.5) * 0.002,
+                        -180, 180)
+                },
+                FuelLevel = fuel,
+                EngineHealth = _random.NextDouble() < warningChance ? "Check Engine" : "Good",
+                Timestamp = DateTime.UtcNow
+            };
         }
     }
 }

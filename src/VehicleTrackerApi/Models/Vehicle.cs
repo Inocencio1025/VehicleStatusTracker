@@ -1,24 +1,24 @@
 namespace VehicleTrackerApi.Models
 {
-    public class Vehicle
+  public class Vehicle
+  {
+    public int Id { get; set; }
+    public string Make { get; set; } = null!;
+    public string Model { get; set; } = null!;
+    public int Year { get; set; }
+    public string VIN { get; set; } = null!;
+    public int UserId { get; set; } // foreign key
+    public User User { get; set; } = null!;
+    public List<VehicleStatus> VehicleStatuses { get; set; } = [];
+
+    public Vehicle() { }
+
+    public Vehicle(string make, string model, int year, string vin)
     {
-        public int VehicleId { get; set; }
-        public int Speed { get; set; }
-        public double FuelLevel { get; set; }
-        public string EngineHealth { get; set; } = string.Empty;
-        public DateTime Timestamp { get; set; }
-        public Location Location { get; set; } = new();
-
-        public Vehicle() { }
-
-        public Vehicle(int vehID, int speed, Location location, double fuelLvl, string engHlth, DateTime date)
-        {
-            VehicleId = vehID;
-            Speed = speed;
-            Location = location;
-            FuelLevel = fuelLvl;
-            EngineHealth = engHlth;
-            Timestamp = date;
-        }
+      Make = make;
+      Model = model;
+      Year = year;
+      VIN = vin;
     }
+  }
 }

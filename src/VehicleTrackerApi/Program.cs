@@ -24,7 +24,7 @@ var jwtKey = builder.Configuration["Jwt:Key"];
 // Add services to the container (DI)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+//builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -43,9 +43,56 @@ builder.Services
                 Encoding.UTF8.GetBytes(jwtKey!)
             )
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken)
+                    && path.StartsWithSegments("/hubs/vehicle"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Enter JWT token"
+    });
+
+    options.AddSecurityRequirement(
+        new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        });
+});
 
 // Configuration for options pattern
 builder.Services.Configure<TelemetryOptions>(builder.Configuration.GetSection("Telemetry"));
@@ -98,28 +145,60 @@ using (var scope = app.Services.CreateScope())
         db.Database.Migrate();
     }
 
+    // 1. Seed USER first
+    if (!db.Users.Any())
+    {
+        var user = new User
+        {
+            Username = "demo",
+            Email = "demo@test.com",
+            PasswordHash = "test" // doesn't matter for seed
+        };
+
+        db.Users.Add(user);
+        db.SaveChanges();
+    }
+
+    var userId = db.Users.First().Id;
+
+    // 2. Seed VEHICLE
     if (!db.Vehicles.Any())
     {
-        var random = new Random();
-        var vehicles = new List<Vehicle>();
-
-        for (int i = 0; i < 12; i++)
+        var vehicle = new Vehicle("Toyota", "Camry", 2020, "VIN123")
         {
-            vehicles.Add(new Vehicle
-            {
-                Speed = random.Next(0, 120),
-                FuelLevel = random.NextDouble() * 100,
-                EngineHealth = random.NextDouble() > 0.9 ? "Warning" : "Good",
-                Timestamp = DateTime.UtcNow,
-                Location = new Location
-                {
-                    Latitude = random.NextDouble() * 180 - 90,
-                    Longitude = random.NextDouble() * 360 - 180
-                }
-            });
-        }
+            UserId = userId
+        };
 
-        db.Vehicles.AddRange(vehicles);
+        db.Vehicles.Add(vehicle);
+        db.SaveChanges();
+    }
+
+    var vehicleId = db.Vehicles.First().Id;
+
+    // 3. Seed VEHICLE STATUS
+    var vehiclesWithoutStatus = db.Vehicles
+    .Where(v => !db.VehicleStatuses.Any(vs => vs.VehicleId == v.Id))
+    .ToList();
+
+    if (vehiclesWithoutStatus.Count != 0)
+    {
+        var random = new Random();
+
+        var statuses = vehiclesWithoutStatus.Select(vehicle => new VehicleStatus
+        {
+            VehicleId = vehicle.Id,
+            Speed = random.Next(0, 120),
+            FuelLevel = random.NextDouble() * 100,
+            EngineHealth = random.NextDouble() > 0.9 ? "Warning" : "Good",
+            Timestamp = DateTime.UtcNow,
+            Location = new Location
+            {
+                Latitude = random.NextDouble() * 180 - 90,
+                Longitude = random.NextDouble() * 360 - 180
+            }
+        });
+
+        db.VehicleStatuses.AddRange(statuses);
         db.SaveChanges();
     }
 }

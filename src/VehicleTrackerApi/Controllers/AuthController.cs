@@ -9,17 +9,11 @@ namespace VehicleTrackerApi.Controllers
 {
   [ApiController]
   [Route("api/[controller]")]
-  public class AuthController : ControllerBase
+  public class AuthController(AuthService authService, ILogger<AuthController> logger) : ControllerBase
   {
-    private readonly AuthService _authService;
-    private readonly ILogger<AuthController> _logger;
-    
+    private readonly AuthService _authService = authService;
+    private readonly ILogger<AuthController> _logger = logger;
 
-    public AuthController(AuthService authService, ILogger<AuthController> logger)
-    {
-      _authService = authService;
-      _logger = logger;
-    }
     [HttpPost("register")]
     public async Task<IActionResult> PostUser([FromBody] RegisterRequest registerRequest)
     {
@@ -28,17 +22,15 @@ namespace VehicleTrackerApi.Controllers
         _logger.LogWarning("User payload was null.");
         return BadRequest("User data is required.");
       }
-
-      User user = new User
+ 
+      User user = new()
       {
         Email = registerRequest.Email,
         Username = registerRequest.Username,
         PasswordHash = registerRequest.Password,
       };
 
-
       Result result = await _authService.AddUser(user);
-
 
       return Ok(new { result });
     }
