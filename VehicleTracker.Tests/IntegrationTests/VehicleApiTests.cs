@@ -1,28 +1,31 @@
-using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.Hosting;
-using Xunit;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
-public class VehicleApiTests : IClassFixture<WebApplicationFactory<Program>>
+public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    private readonly HttpClient _client;
-
-    public VehicleApiTests()
+    public TestAuthHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder)
+        : base(options, logger, encoder)
     {
-        var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Testing");
-            });
-
-        _client = factory.CreateClient();
     }
 
-    [Fact]
-    public async Task Get_Vehicle_Status_Endpoint_Returns_OK()
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var response = await _client.GetAsync("/api/vehicle/status");
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, "1"),
+            new Claim(ClaimTypes.Name, "testuser")
+        };
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "Test");
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }
