@@ -26,7 +26,7 @@ namespace VehicleTrackerApi.Data
                 .HasMany(v => v.VehicleStatuses)
                 .WithOne(vs => vs.Vehicle)
                 .HasForeignKey(vs => vs.VehicleId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             
 

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using VehicleTrackerApi.Controllers;
 using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Dtos;
 using VehicleTrackerApi.Hubs;
@@ -11,7 +10,7 @@ namespace VehicleTrackerApi.Services
   public class VehicleService(
     VehicleTrackerContext context,
     IHubContext<VehicleHub> hubContext,
-    ILogger<VehicleController> logger)
+    ILogger<VehicleService> logger)
   {
     public async Task<Result<Vehicle>> CreateVehicleAsync(
       int userId,
@@ -76,34 +75,28 @@ namespace VehicleTrackerApi.Services
 
     public async Task<Result<List<VehicleStatusDto>>> GetStatusesAsync(int userId)
     {
-      var stauses = await context.VehicleStatuses
+      var latestStatuses = await context.VehicleStatuses
         .Where(vs => vs.Vehicle.UserId == userId)
-        .Include(vs => vs.Vehicle)
         .OrderByDescending(vs => vs.Timestamp)
-        .ToListAsync();
-
-      var latestStatuses = stauses
         .GroupBy(vs => vs.VehicleId)
         .Select(g => g.First())
         .Select(vs => new VehicleStatusDto(
-            vs.VehicleId,
-            vs.Vehicle.Make,
-            vs.Vehicle.Model,
-            vs.Vehicle.Year,
-            vs.Speed,
-            vs.FuelLevel,
-            vs.EngineHealth,
-            vs.Timestamp,
-            vs.Location
-          ))
-        .ToList();
+          vs.VehicleId,
+          vs.Vehicle.Make,
+          vs.Vehicle.Model,
+          vs.Vehicle.Year,
+          vs.Speed,
+          vs.FuelLevel,
+          vs.EngineHealth,
+          vs.Timestamp,
+          vs.Location))
+        .ToListAsync();
 
       return new Result<List<VehicleStatusDto>>(true, "Success", latestStatuses);
     }
 
     public async Task<Result<List<VehicleDto>>> GetVehiclesAsync(int userId)
     {
-
       var vehicles = await context.Vehicles
         .Where(v => v.UserId == userId)
         .Select(v => new VehicleDto(
@@ -136,7 +129,7 @@ namespace VehicleTrackerApi.Services
       return new Result<VehicleDto>(true, "Success", vehicleDto);
     }
 
-    public async Task<Result<List<VehicleStatusDto>>> GetVehicleHistoryAsync(int userId, int id)
+    public async Task<Result<List<VehicleStatusDto>>> GetVehicleHistoryAsync(int userId, int id, int hours)
     {
       var existingVehicle = await context.Vehicles
         .FirstOrDefaultAsync(v => v.UserId == userId && v.Id == id);
@@ -144,9 +137,12 @@ namespace VehicleTrackerApi.Services
       if (existingVehicle == null)
         return new Result<List<VehicleStatusDto>>(false, "Vehicle does not exist", null);
 
+      var cutoff = DateTime.UtcNow.AddHours(-hours);
+
       var statusHistory = await context.VehicleStatuses
         .Where(vs => vs.VehicleId == id && 
-          vs.Vehicle.UserId == userId)
+          vs.Vehicle.UserId == userId &&
+          vs.Timestamp >= cutoff)
         .OrderByDescending(vs => vs.Timestamp)
         .Select(vs => new VehicleStatusDto(
           vs.VehicleId,

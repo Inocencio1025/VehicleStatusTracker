@@ -117,7 +117,7 @@ namespace VehicleTrackerApi.Controllers
             if (GetUserId() is not int userId)
                 return Unauthorized();
             
-            var result = await vehicleService.GetVehicleHistoryAsync(userId, id);
+            var result = await vehicleService.GetVehicleHistoryAsync(userId, id, hours);
 
             if (!result.Success)
                 return NotFound(result.Message);
@@ -139,11 +139,6 @@ namespace VehicleTrackerApi.Controllers
 
             return NoContent();
         }
-
-        //list vehicles per user
-        //get single vehicle
-        //get single vehicle history (last ? hours)
-        //delete vehicle
 
         private int? GetUserId()
         {

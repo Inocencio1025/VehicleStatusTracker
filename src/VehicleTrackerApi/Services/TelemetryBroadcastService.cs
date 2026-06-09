@@ -80,9 +80,7 @@ namespace VehicleTrackerApi.Services
                                 stoppingToken);
                     }
 
-                    _logger.LogInformation(
-                        "Telemetry tick complete. Updated {Count} vehicles.",
-                        newStatuses.Count);
+                    _logger.LogInformation("Tick...");
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
