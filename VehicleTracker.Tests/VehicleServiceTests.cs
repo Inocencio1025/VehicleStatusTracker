@@ -3,6 +3,8 @@ using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Dtos;
 using VehicleTrackerApi.Models;
 using VehicleTrackerApi.Services;
+using Microsoft.Extensions.Logging.Abstractions;
+using VehicleTrackerApi.Controllers;
 
 namespace VehicleTracker.Tests
 {
@@ -77,7 +79,7 @@ namespace VehicleTracker.Tests
       var service = new VehicleService(
           context,
           null!,
-          null!
+          NullLogger<VehicleService>.Instance
       );
 
       var input = new CreateVehicleInput(
@@ -112,7 +114,7 @@ namespace VehicleTracker.Tests
       var service = new VehicleService(
           context,
           null!,
-          null!
+          NullLogger<VehicleService>.Instance
       );
 
       var input = new CreateVehicleInput(
