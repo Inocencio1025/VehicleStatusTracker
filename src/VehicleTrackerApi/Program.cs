@@ -107,6 +107,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
 // Services
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PasswordService>();
+builder.Services.AddScoped<VehicleService>();
 
 // CORS
 builder.Services.AddCors(options =>
@@ -152,7 +153,7 @@ using (var scope = app.Services.CreateScope())
         {
             Username = "demo",
             Email = "demo@test.com",
-            PasswordHash = "test" // doesn't matter for seed
+            Password = "test" // doesn't matter for seed
         };
 
         db.Users.Add(user);

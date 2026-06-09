@@ -15,7 +15,7 @@ namespace VehicleTrackerApi.Services
     {
       var result = _hasher.VerifyHashedPassword(
           user,
-          user.PasswordHash,
+          user.Password,
           enteredPassword
       );
 

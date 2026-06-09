@@ -2,24 +2,21 @@ using Microsoft.AspNetCore.Mvc;
 using VehicleTrackerApi.Dtos;
 using VehicleTrackerApi.Models;
 using VehicleTrackerApi.Services;
-using LoginRequest = VehicleTrackerApi.Dtos.LoginRequest;
-using RegisterRequest = VehicleTrackerApi.Dtos.RegisterRequest;
 
 namespace VehicleTrackerApi.Controllers
 {
   [ApiController]
   [Route("api/[controller]")]
-  public class AuthController(AuthService authService, ILogger<AuthController> logger) : ControllerBase
+  public class AuthController(
+    AuthService authService, 
+    ILogger<AuthController> logger) : ControllerBase
   {
-    private readonly AuthService _authService = authService;
-    private readonly ILogger<AuthController> _logger = logger;
-
     [HttpPost("register")]
     public async Task<IActionResult> PostUser([FromBody] RegisterRequest registerRequest)
     {
       if (registerRequest == null)
       {
-        _logger.LogWarning("User payload was null.");
+        logger.LogWarning("User payload was null.");
         return BadRequest("User data is required.");
       }
  
@@ -27,22 +24,26 @@ namespace VehicleTrackerApi.Controllers
       {
         Email = registerRequest.Email,
         Username = registerRequest.Username,
-        PasswordHash = registerRequest.Password,
+        Password = registerRequest.Password,
       };
 
-      Result result = await _authService.AddUser(user);
+      var result = await authService.AddUser(user);
 
-      return Ok(new { result });
+      if (!result.Success)
+        return BadRequest(result.Message);
+
+      return Ok(result.Data);
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest loginRequest)
     {
-      User? user = await _authService.Authenticate(loginRequest);
+      var user = await authService.Authenticate(loginRequest);
+ 
+      if (!user.Success) 
+        return Unauthorized(user.Message);
 
-      if (user == null) return Unauthorized();
-
-      string token = _authService.CreateToken(user);
+      string token = authService.CreateToken(user.Data!);
       return Ok(new { token });
     }
   }

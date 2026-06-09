@@ -1,150 +1,157 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using VehicleTrackerApi.Data;
 using VehicleTrackerApi.Dtos;
-using VehicleTrackerApi.Hubs;
-using VehicleTrackerApi.Models;
+using VehicleTrackerApi.Services;
 
 namespace VehicleTrackerApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class VehicleController(
-        VehicleTrackerContext context,
-        IHubContext<VehicleHub> hubContext,
-        ILogger<VehicleController> logger,
-        IOptions<DemoTickOptions> demoOptions) : ControllerBase
+    public class VehicleController(VehicleService vehicleService) : ControllerBase
     {
-        private readonly VehicleTrackerContext _context = context;
-        private readonly IHubContext<VehicleHub> _hubContext = hubContext;
-        private readonly ILogger<VehicleController> _logger = logger;
-        private readonly DemoTickOptions _demoOptions = demoOptions.Value;
-        private readonly Random _random = new();
 
         [Authorize]
         [HttpPost("status")]
-        public async Task<IActionResult> CreateVehicleStatus([FromBody] UpdateVehicleStatusRequest request)
+        public async Task<IActionResult> CreateVehicleStatus(CreateVehicleStatusRequest request)
         {
-            if (!int.TryParse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
-            {
+            if (GetUserId() is not int userId)
                 return Unauthorized();
+
+            var result = await vehicleService.CreateVehicleStatusAsync(
+                userId,
+                new CreateVehicleStatusInput
+                (
+                    request.VehicleId,
+                    request.Speed,
+                    request.Location,
+                    request.FuelLvl,
+                    request.EngHlth,
+                    request.Date
+            ));
+
+            if (!result.Success)
+            {
+                if (result.Message == "Forbidden")
+                    return Forbid();
+
+                return BadRequest(result.Message);
             }
 
-            if (request == null)
-            {
-                _logger.LogWarning("Vehicle status payload was null.");
-                return BadRequest("Vehicle data is required.");
-            }
-
-            Vehicle? vehicle = await _context.Vehicles.FirstOrDefaultAsync(v => v.Id == request.VehicleId);
-
-            if (vehicle == null)
-            {
-                _logger.LogWarning("Could not find vehicle ID in database");
-                return BadRequest("Vehicle does not exist");
-            }
-            if (userId != vehicle.UserId)
-            {
-                return Forbid();
-            }
-
-            var newStatus = new VehicleStatus
-            {
-                VehicleId = vehicle.Id,
-                Speed = request.Speed,
-                FuelLevel = request.FuelLvl,
-                EngineHealth = request.EngHlth,
-                Timestamp = request.Date,
-                Location = request.Location
-            };
-
-            _context.VehicleStatuses.Add(newStatus);
-            await _context.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("VehicleStatusUpdated", newStatus);
-
-            _logger.LogInformation(
-                "Vehicle status create succeeded and broadcast event {EventName} was sent for VehicleId {VehicleId}.",
-                "VehicleStatusUpdated",
-                request.VehicleId);
-
-            return Ok(newStatus);
+            return Created($"/api/vehicle/{result.Data!.Id}", result.Data);
         }
 
         [Authorize]
         [HttpPost("vehicle")]
         public async Task<IActionResult> CreateVehicle([FromBody] CreateVehicleRequest request)
         {
-            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
-            {
+            if (GetUserId() is not int userId)
                 return Unauthorized();
-            }
 
-            var existingVehicle = await _context.Vehicles
-                .AnyAsync(v => v.VIN == request.VIN);
 
-            if (existingVehicle)
-            {
-                return BadRequest("Vehicle already exists.");
-            }
+            var result = await vehicleService.CreateVehicleAsync(
+                userId,
+                new CreateVehicleInput(
+                    request.Make,
+                    request.Model,
+                    request.Year,
+                    request.VIN
+                ));
 
-            var vehicle = new Vehicle(
-                request.Make,
-                request.Model,
-                request.Year,
-                request.VIN);
+            if (!result.Success)
+                return BadRequest(result.Message);
 
-            vehicle.UserId = userId;
-            _context.Vehicles.Add(vehicle);
-            await _context.SaveChangesAsync();
-
-            return Created($"/api/vehicle/{vehicle.Id}", vehicle);
+            return Created($"/api/vehicle/{result.Data!.Id}", result.Data);
         }
 
         [Authorize]
         [HttpGet("status")]
         public async Task<IActionResult> GetVehicleStatuses()
         {
-            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),
-                out var userId))
-            {
+            if (GetUserId() is not int userId)
                 return Unauthorized();
-            }
 
-            var latestStatuses = await _context.VehicleStatuses
-                .Where(vs => vs.Vehicle.UserId == userId)
-                .Include(vs => vs.Vehicle)
-                .OrderByDescending(vs => vs.Timestamp)
-                .ToListAsync();
+            var result = await vehicleService.GetStatusesAsync(userId);
 
-            var result = latestStatuses
-                .GroupBy(vs => vs.VehicleId)
-                .Select(g => g.First())
-                .Select(vs => new VehicleStatusDto(
-                    vs.VehicleId,
-                    vs.Vehicle.Make,
-                    vs.Vehicle.Model,
-                    vs.Vehicle.Year,
-                    vs.Speed,
-                    vs.FuelLevel,
-                    vs.EngineHealth,
-                    vs.Timestamp,
-                    vs.Location
-                ))
-                .ToList();
+            if (!result.Success)
+                return BadRequest(result.Message);
 
-            _logger.LogInformation(
-                "Returned vehicle status list with {VehicleCount} vehicle(s).",
-                result.Count);
+            return Ok(result.Data);
+        }
 
-            return Ok(result);
+        [Authorize]
+        [HttpGet("vehicles")]
+        public async Task<IActionResult> GetVehicles()
+        {
+            if (GetUserId() is not int userId)
+                return Unauthorized();
+            
+            var result = await vehicleService.GetVehiclesAsync(userId);
+            
+            if (!result.Success)
+                return NotFound(result.Message);
+
+            return Ok(result.Data);
+        }
+
+        [Authorize]
+        [HttpGet("vehicles/{id}")]
+        public async Task<IActionResult> GetVehicleAsync(int id)
+        {
+            if (GetUserId() is not int userId)
+                return Unauthorized();
+            
+            var result = await vehicleService.GetVehicleAsync(userId, id);
+
+            if (!result.Success)
+                return NotFound(result.Message);
+
+            return Ok(result.Data);
         }
 
 
+        [Authorize]
+        [HttpGet("vehicles/{id}/history")]
+        public async Task<IActionResult> GetVehicleHistory(int id, int hours = 24)
+        {
+            if (GetUserId() is not int userId)
+                return Unauthorized();
+            
+            var result = await vehicleService.GetVehicleHistoryAsync(userId, id);
+
+            if (!result.Success)
+                return NotFound(result.Message);
+
+            return Ok(result.Data);
+        }
+                
+        [Authorize]
+        [HttpDelete("vehicles/{id}")]
+        public async Task<IActionResult> DeleteVehicle(int id)
+        {
+            if (GetUserId() is not int userId)
+                return Unauthorized();
+            
+            var result = await vehicleService.DeleteVehicleAsync(userId, id);
+
+            if (!result.Success)
+                return NotFound(result.Message);
+
+            return NoContent();
+        }
+
+        //list vehicles per user
+        //get single vehicle
+        //get single vehicle history (last ? hours)
+        //delete vehicle
+
+        private int? GetUserId()
+        {
+            return int.TryParse(
+                User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var userId)
+                ? userId
+                : null;
+        }
     }
 }
