@@ -14,7 +14,8 @@ namespace VehicleTrackerApi.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<VehicleStatus>().OwnsOne(v => v.Location);
+            modelBuilder.Entity<VehicleStatus>()
+                .OwnsOne(v => v.Location);
 
             modelBuilder.Entity<User>()
                 .HasMany(u => u.Vehicles)
@@ -28,7 +29,8 @@ namespace VehicleTrackerApi.Data
                 .HasForeignKey(vs => vs.VehicleId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            
+            modelBuilder.Entity<VehicleStatus>()
+                .HasIndex(vs => new { vs.VehicleId, vs.Timestamp });
 
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)

@@ -1,33 +1,23 @@
 using Microsoft.AspNetCore.Mvc;
 using VehicleTrackerApi.Dtos;
-using VehicleTrackerApi.Models;
 using VehicleTrackerApi.Services;
 
 namespace VehicleTrackerApi.Controllers
 {
   [ApiController]
   [Route("api/[controller]")]
-  public class AuthController(
-    AuthService authService, 
-    ILogger<AuthController> logger) : ControllerBase
+  public class AuthController(AuthService authService) : ControllerBase
   {
     [HttpPost("register")]
     public async Task<IActionResult> PostUser([FromBody] RegisterRequest registerRequest)
     {
-      if (registerRequest == null)
-      {
-        logger.LogWarning("User payload was null.");
-        return BadRequest("User data is required.");
-      }
- 
-      User user = new()
-      {
-        Email = registerRequest.Email,
-        Username = registerRequest.Username,
-        Password = registerRequest.Password,
-      };
+      var newUser = new CreateUserInput(
+        registerRequest.Username.Trim(),
+        registerRequest.Email.Trim(),
+        registerRequest.Password
+      );
 
-      var result = await authService.AddUser(user);
+      var result = await authService.AddUser(newUser);
 
       if (!result.Success)
         return BadRequest(result.Message);
@@ -39,9 +29,9 @@ namespace VehicleTrackerApi.Controllers
     public async Task<IActionResult> Login(LoginRequest loginRequest)
     {
       var user = await authService.Authenticate(loginRequest);
- 
-      if (!user.Success) 
-        return Unauthorized(user.Message);
+
+      if (!user.Success)
+        return Unauthorized("Invalid username or password");
 
       string token = authService.CreateToken(user.Data!);
       return Ok(new { token });

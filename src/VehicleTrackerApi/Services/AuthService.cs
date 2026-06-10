@@ -30,17 +30,47 @@ namespace VehicleTrackerApi.Services
       return new Result<User>(true, "Authenticated", user);
     }
 
-    public async Task<Result<User>> AddUser(User user)
+    public async Task<Result<UserDto>> AddUser(CreateUserInput request)
     {
-      user.Password = passwordService.Hash(user, user.Password);
+      //-------Validation checks-------
+      var existingUser = await context.Users
+        .AnyAsync(u => u.Username == request.Username);
+      
+      if (existingUser)
+        return new Result<UserDto>(false, "Username already exists", null);
+      
+      existingUser = await context.Users
+        .AnyAsync(u => u.Email == request.Email);
+      
+      if (existingUser)
+        return new Result<UserDto>(false, "Email already exists", null);
 
-      // add validation check here
+      bool hasUpper = request.Password.Any(char.IsUpper);
+      bool hasLower = request.Password.Any(char.IsLower);
+      bool hasDigit = request.Password.Any(char.IsDigit);
 
-      context.Add(user);
+      if (request.Password.Length < 8)
+        return new Result<UserDto>(false, "Password must be at least 8 characters.", null);
+
+      if (!hasUpper || !hasLower || !hasDigit)
+        return new Result<UserDto>(false, "Password requirements not met.", null);
+      //-------End of validation checks----------
+
+      
+      var newUser = new User
+      {
+        Username = request.Username,
+        Email = request.Email
+      };
+      newUser.Password = passwordService.Hash(newUser, request.Password);
+
+      context.Add(newUser);
       await context.SaveChangesAsync();
 
-      logger.LogInformation("User added with ID: {UserId}.", user.Id);
-      return new Result<User>(true, "User created successfully", user);
+      logger.LogInformation("User added with ID: {UserId}.", newUser.Id);
+ 
+      return new Result<UserDto>(true, "User created successfully", 
+        new UserDto(newUser.Username, newUser.Email));
     }
 
     public string CreateToken(User user)

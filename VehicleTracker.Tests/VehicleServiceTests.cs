@@ -34,7 +34,7 @@ namespace VehicleTracker.Tests
       context.Vehicles.Add(vehicle);
       await context.SaveChangesAsync();
 
-      var service = new VehicleService(
+      var service = new VehicleReadService(
           context,
           null!,   // hubContext not needed for this test
           null!    // logger not needed for this test
@@ -56,7 +56,7 @@ namespace VehicleTracker.Tests
       // Arrange
       var context = CreateContext();
 
-      var service = new VehicleService(
+      var service = new VehicleReadService(
           context,
           null!,
           null!
@@ -76,10 +76,10 @@ namespace VehicleTracker.Tests
       // Arrange
       var context = CreateContext();
 
-      var service = new VehicleService(
+      var service = new VehicleReadService(
           context,
           null!,
-          NullLogger<VehicleService>.Instance
+          NullLogger<VehicleReadService>.Instance
       );
 
       var input = new CreateVehicleInput(
@@ -111,10 +111,10 @@ namespace VehicleTracker.Tests
 
       await context.SaveChangesAsync();
 
-      var service = new VehicleService(
+      var service = new VehicleReadService(
           context,
           null!,
-          NullLogger<VehicleService>.Instance
+          NullLogger<VehicleReadService>.Instance
       );
 
       var input = new CreateVehicleInput(

@@ -104,7 +104,7 @@ namespace VehicleTrackerApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("VehicleId");
+                    b.HasIndex("VehicleId", "Timestamp");
 
                     b.ToTable("VehicleStatuses");
                 });
@@ -125,7 +125,7 @@ namespace VehicleTrackerApi.Migrations
                     b.HasOne("VehicleTrackerApi.Models.Vehicle", "Vehicle")
                         .WithMany("VehicleStatuses")
                         .HasForeignKey("VehicleId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.OwnsOne("VehicleTrackerApi.Models.Location", "Location", b1 =>

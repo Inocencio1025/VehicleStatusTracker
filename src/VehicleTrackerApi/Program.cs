@@ -106,8 +106,10 @@ if (!builder.Environment.IsEnvironment("Testing"))
 
 // Services
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<PasswordService>();
-builder.Services.AddScoped<VehicleService>();
+builder.Services.AddScoped<VehicleReadService>();
+builder.Services.AddScoped<VehicleWriteService>();
+builder.Services.AddSingleton<PasswordService>();
+
 
 // CORS
 builder.Services.AddCors(options =>
