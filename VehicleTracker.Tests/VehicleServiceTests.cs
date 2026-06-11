@@ -35,9 +35,7 @@ namespace VehicleTracker.Tests
       await context.SaveChangesAsync();
 
       var service = new VehicleReadService(
-          context,
-          null!,   // hubContext not needed for this test
-          null!    // logger not needed for this test
+          context
       );
 
       // Act
@@ -57,9 +55,7 @@ namespace VehicleTracker.Tests
       var context = CreateContext();
 
       var service = new VehicleReadService(
-          context,
-          null!,
-          null!
+          context
       );
 
       // Act
@@ -76,10 +72,10 @@ namespace VehicleTracker.Tests
       // Arrange
       var context = CreateContext();
 
-      var service = new VehicleReadService(
+      var service = new VehicleWriteService(
           context,
           null!,
-          NullLogger<VehicleReadService>.Instance
+          NullLogger<VehicleWriteService>.Instance
       );
 
       var input = new CreateVehicleInput(
@@ -96,7 +92,7 @@ namespace VehicleTracker.Tests
       Assert.True(result.Success);
       Assert.NotNull(result.Data);
       Assert.Equal("Toyota", result.Data.Make);
-      Assert.Equal(1, result.Data.UserId);
+      Assert.Equal(1, result.Data.VehicleId);
     }
     [Fact]
     public async Task CreateVehicleAsync_WhenVinAlreadyExists_ReturnsFailure()
@@ -111,10 +107,10 @@ namespace VehicleTracker.Tests
 
       await context.SaveChangesAsync();
 
-      var service = new VehicleReadService(
+      var service = new VehicleWriteService(
           context,
           null!,
-          NullLogger<VehicleReadService>.Instance
+          NullLogger<VehicleWriteService>.Instance
       );
 
       var input = new CreateVehicleInput(
