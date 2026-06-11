@@ -19,11 +19,15 @@ This project was built primarily as a learning exercise and to strengthen my bac
 
 ## Key Features
 
+- JWT authentication and authorization
 - Real-time vehicle telemetry dashboard with live updates
+- Historical telemetry visualization with interactive charts
 - Simulated vehicle data stream for realistic tracking
-- REST API + SignalR for real-time vehicle updates  
-- Interactive React + Vite dashboard 
-- Persistent data storage 
+- REST API + SignalR for real-time vehicle updates
+- Layered backend architecture (Controllers → Services → Data)
+- DTO-based API contracts
+- Interactive React + Vite dashboard
+- Persistent data storage
 - Automated testing
 
 ---
@@ -96,25 +100,19 @@ GitHub Actions workflow:
 
 ## What I Learned
 
-- How to structure a multi-project .NET solution cleanly  
-- Building real-time applications using SignalR  
-- Creating background services for continuous data simulation  
-- Writing and organizing unit and integration tests  
-- Using ILogger for structured logging instead of Console.WriteLine  
+- How to structure a multi-project .NET solution cleanly
+- How to write meaningful + proper Git commit messages  
+- Creating background services for continuous data simulation (SignalR)
+- Using DTOs to separate API contracts from domain models
+- What is JWT and how to implement Authentication + Authorization
+- What is CORS and how to configure it.
+- To used my first custom generic (I celebrate small wins too)
+- How to seperate read and write operations using CQRS-style architecture
+- How and Why to test my code using Unit/Integration tests  
+- How to use ILogger for structured logging instead of Console.WriteLine  
 - Managing configuration across different environments  
-- Writing meaningful Git commit messages  
 - Setting up CI pipelines using GitHub Actions  
 - Containerizing applications with Docker  
-- Improving backend architecture and system design over time  
-
----
-
-## Future Improvements
-
-I probably won’t come back to this project in any serious way, but if I do, it would mostly be to experiment, learn new tools, or try out different software engineering practices to keep improving.
-- Improve frontend UI/UX  
-- Optimize Docker development workflow (hot reload)  
-- Expand telemetry simulation realism  
 
 ---
 
@@ -145,4 +143,4 @@ At this point, I consider this project complete for my current goals. It already
 ## Screenshot
 When you get things up and running, the telemetry dashboard should look like this:
 
-<img width="405" height="1061" alt="image" src="https://github.com/user-attachments/assets/778151f3-7af0-4a85-a0f6-9c3ef072f2f3" />
+<img width="1152" height="929" alt="Screenshot (660)" src="https://github.com/user-attachments/assets/03e32019-4090-4396-ab4a-bcdeb159212c" />
