@@ -92,10 +92,9 @@ namespace VehicleTrackerApi.Services
                     stoppingToken);
             }
         }
-
         private VehicleStatus GenerateNextStatus(VehicleStatus previous)
         {
-            var speedDelta = _random.Next(-6, 7);
+            var speedDelta = _random.Next(-15, 15);
 
             var speed = Math.Clamp(
                 previous.Speed + speedDelta,
@@ -105,11 +104,30 @@ namespace VehicleTrackerApi.Services
             var fuelBurn =
                 0.01 + (speed / (double)_telemetryOptions.MaxSpeedMph) * 0.08;
 
+            //var fuel = _random.Next(1, 100);
+
             var fuel = Math.Clamp(previous.FuelLevel - fuelBurn, 0, 100);
 
+            // Vehicle starts looking for fuel when tank is low
+            if (fuel < 10)
+            {
+                speed = Math.Max(0, speed - 15);
+            }
+
+            // Refuel when nearly empty
+            if (fuel < 5 && _random.NextDouble() < 0.25)
+            {
+                speed = 0;
+                fuel = 100;
+            }
+
             var warningChance = 0.01;
-            if (fuel < _telemetryOptions.WarningFuelThreshold) warningChance += 0.10;
-            if (speed > _telemetryOptions.HighSpeedWarningThreshold) warningChance += 0.05;
+
+            if (fuel < _telemetryOptions.WarningFuelThreshold)
+                warningChance += 0.10;
+
+            if (speed > _telemetryOptions.HighSpeedWarningThreshold)
+                warningChance += 0.05;
 
             return new VehicleStatus
             {
@@ -118,14 +136,21 @@ namespace VehicleTrackerApi.Services
                 Location = new Location
                 {
                     Latitude = Math.Clamp(
-                        (previous.Location?.Latitude ?? 42.3314) + (_random.NextDouble() - 0.5) * 0.002,
-                        -90, 90),
+                        (previous.Location?.Latitude ?? 42.3314)
+                        + (_random.NextDouble() - 0.5) * 0.002,
+                        -90,
+                        90),
+
                     Longitude = Math.Clamp(
-                        (previous.Location?.Longitude ?? -83.0458) + (_random.NextDouble() - 0.5) * 0.002,
-                        -180, 180)
+                        (previous.Location?.Longitude ?? -83.0458)
+                        + (_random.NextDouble() - 0.5) * 0.002,
+                        -180,
+                        180)
                 },
                 FuelLevel = fuel,
-                EngineHealth = _random.NextDouble() < warningChance ? "Check Engine" : "Good",
+                EngineHealth = _random.NextDouble() < warningChance
+                    ? "Check Engine"
+                    : "Good",
                 Timestamp = DateTime.UtcNow
             };
         }

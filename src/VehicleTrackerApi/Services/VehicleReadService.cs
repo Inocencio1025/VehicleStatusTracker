@@ -33,13 +33,13 @@ namespace VehicleTrackerApi.Services
       return new Result<List<VehicleStatusDto>>(true, "Success", result);
     }
 
-    public async Task<Result<List<VehicleStatusDto>>> GetVehicleHistoryAsync(int userId, int id, int hours)
+    public async Task<Result<VehicleHistoryDto>> GetVehicleHistoryAsync(int userId, int id, int hours)
     {
       var existingVehicle = await context.Vehicles
         .FirstOrDefaultAsync(v => v.UserId == userId && v.Id == id);
 
       if (existingVehicle == null)
-        return new Result<List<VehicleStatusDto>>(false, "Vehicle does not exist", null);
+        return new Result<VehicleHistoryDto>(false, "Vehicle does not exist", null);
 
       var cutoff = DateTime.UtcNow.AddHours(-hours);
 
@@ -51,7 +51,24 @@ namespace VehicleTrackerApi.Services
         .OrderByDescending(vs => vs.Timestamp)
         .ToListAsync();
 
-        var result = statusHistory
+        var avgSpeed = (int)statusHistory.Average(vs => vs.Speed);
+        var maxSpeed = statusHistory.Max(vs => vs.Speed);
+        var totalMileage = (int)statusHistory.Sum(vs => vs.Speed * (vs.Timestamp - cutoff).TotalHours);
+        
+        DateTime? lastRefueled = null;
+        for (int i = 1; i < statusHistory.Count; i++)
+        {
+            var current = statusHistory[i - 1];
+            var previous = statusHistory[i];
+
+            if (current.FuelLevel - previous.FuelLevel > 10) // threshold
+            {
+                lastRefueled = current.Timestamp;
+                break;
+            }
+        }
+
+        var historyList = statusHistory
           .Select(vs => new VehicleStatusDto(
             vs.VehicleId,
             vs.Vehicle.Make,
@@ -64,7 +81,15 @@ namespace VehicleTrackerApi.Services
             vs.Location))
           .ToList();
 
-      return new Result<List<VehicleStatusDto>>(true, "Success", result);
+      return new Result<VehicleHistoryDto>(true, "Success", 
+        new VehicleHistoryDto(
+          avgSpeed,
+          maxSpeed,
+          totalMileage,
+          lastRefueled,
+          historyList
+        )
+      );
     }
 
     public async Task<Result<List<VehicleDto>>> GetVehiclesByUserAsync(int userId)

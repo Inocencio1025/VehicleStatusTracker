@@ -40,7 +40,17 @@ namespace VehicleTrackerApi.Services
         UserId = userId
       };
 
+      var firstStatus = new VehicleStatus
+      {
+        Vehicle = newVehicle,
+        Speed = 0,
+        FuelLevel = 0,
+        Timestamp = DateTime.UtcNow,
+        Location = new Location(0, 0) 
+      };
+
       context.Vehicles.Add(newVehicle);
+      context.VehicleStatuses.Add(firstStatus);
       await context.SaveChangesAsync();
 
       logger.LogInformation(

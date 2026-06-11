@@ -91,7 +91,7 @@ namespace VehicleTrackerApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("vehicles/{id}")]
+        [HttpGet("{id}")]
         public async Task<IActionResult> GetVehicle(int id)
         {
             var userId = User.GetUserId();
@@ -108,7 +108,7 @@ namespace VehicleTrackerApi.Controllers
 
 
         [Authorize]
-        [HttpGet("vehicles/{id}/history")]
+        [HttpGet("{id}/history")]
         public async Task<IActionResult> GetVehicleHistory(int id, int hours = 24)
         {
             var userId = User.GetUserId();
@@ -124,7 +124,7 @@ namespace VehicleTrackerApi.Controllers
         }
                 
         [Authorize]
-        [HttpDelete("vehicles/{id}")]
+        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteVehicle(int id)
         {
             var userId = User.GetUserId();

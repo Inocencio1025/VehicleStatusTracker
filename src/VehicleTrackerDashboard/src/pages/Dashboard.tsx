@@ -3,6 +3,7 @@ import '../index.css'
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import * as signalR from "@microsoft/signalr";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 // for datetime updates  
 dayjs.extend(relativeTime);
@@ -24,13 +25,23 @@ type VehicleStatus = {
   };
 };
 
+type VehicleHistoryDto = {
+  avgSpeed: number;
+  maxSpeed: number;
+  totalMileage: number;
+  lastRefueled: string | null;
+  history: VehicleStatus[];
+};
+
 export default function Dashboard() {
 
   const [statuses, setStatuses] = useState<VehicleStatus[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleHistoryDto | null>(null); const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [sortBy, setSortBy] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'disconnected'>('connecting');
+
 
   useEffect(() => {
     let isMounted = true;
@@ -74,6 +85,7 @@ export default function Dashboard() {
           copy[idx] = updated;
           return copy;
         });
+
       });
 
       try {
@@ -98,9 +110,14 @@ export default function Dashboard() {
 
   }, []);
 
+  useEffect(() => {
+    if (selectedVehicleId === null) return;
+
+    fetchVehicleHistory(selectedVehicleId);
+  }, [selectedVehicleId]);
+
   async function fetchStatuses(isMounted = true) {
     const token = localStorage.getItem("token");
-    console.log("TOKEN:", token);
     try {
       const res = await fetch(`${API_BASE_URL}/api/vehicle/status`, {
         headers: {
@@ -130,6 +147,30 @@ export default function Dashboard() {
       setError(true);
     } finally {
       if (isMounted) setIsLoading(false);
+    }
+  }
+
+  async function fetchVehicleHistory(vehicleId: number) {
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/vehicle/${vehicleId}/history?hours=24`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to fetch history");
+
+      const data: VehicleHistoryDto = await res.json();
+
+      setSelectedVehicle(data);
+    } catch (err) {
+      console.error(err);
+      setSelectedVehicle(null);
     }
   }
 
@@ -163,89 +204,157 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
-      <div className="max-w-3xl mx-auto space-y-4">
+      <div className="max-w-7xl mx-auto flex gap-6">
 
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Vehicle Status</h1>
-            <span
-              className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${connectionBadgeStyles[connectionStatus]
-                }`}
+        {/* LEFT PANEL */}
+        <div className="w-96 space-y-4">
+
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Vehicle Status</h1>
+
+              <span
+                className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${connectionBadgeStyles[connectionStatus]}`}
+              >
+                {connectionStatus}
+              </span>
+            </div>
+
+            <select
+              className="bg-gray-800 text-white p-2 rounded mx-5"
+              onChange={(e) => setSortBy(e.target.value)}
             >
-              {connectionStatus}
-            </span>
+              <option value="">Sort By</option>
+              <option value="id">Vehicle ID</option>
+              <option value="speed">Speed</option>
+              <option value="fuel">Fuel Level</option>
+            </select>
           </div>
 
-          <select
-            className="bg-gray-800 text-white p-2 rounded mx-5"
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="">Sort By</option>
-            <option value="id">Vehicle ID</option>
-            <option value="speed">Speed</option>
-            <option value="fuel">Fuel Level</option>
-          </select>
-        </div>
+          {isLoading && (
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-blue-500" />
+            </div>
+          )}
 
-        {isLoading && (
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-blue-500"></div>
-          </div>
-        )}
+          {error && (
+            <p className="text-red-500">
+              Failed to load vehicle data.
+            </p>
+          )}
 
-        {error && <p className="text-red-500">Failed to load vehicle data.</p>}
+          {!isLoading &&
+            !error &&
+            sortedStatuses.map((status) => (
+              <div
+                key={status.vehicleId}
+                onClick={() => setSelectedVehicleId(status.vehicleId)}
+                className="bg-gray-800 rounded-xl p-6 shadow shadow-gray-700 hover:shadow-2xl hover:shadow-black transition-shadow duration-300"
+              >
+                <div className="flex justify-between items-start mb-2 gap-4">
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-semibold">
+                      Vehicle #{status.vehicleId}
+                    </h2>
 
-        {!isLoading &&
-          !error &&
-          sortedStatuses.map((status) => (
-            <div
-              key={status.vehicleId}
-              className="bg-gray-800 rounded-xl p-6 shadow shadow-gray-700 hover:shadow-2xl hover:shadow-black transition-shadow duration-300"
-            >
-              {/* HEADER */}
-              <div className="flex justify-between items-start mb-2 gap-4">
-                <div className="min-w-0">
-                  <h2 className="text-xl font-semibold">
-                    Vehicle #{status.vehicleId}
-                  </h2>
+                    <p className="text-sm text-gray-400">
+                      {status.make} {status.model} • {status.year}
+                    </p>
+                  </div>
 
-                  <p className="text-sm text-gray-400">
-                    {status.make} {status.model} • {status.year}
-                  </p>
+                  <span
+                    className={`shrink-0 px-3 py-1 rounded-full text-sm font-medium ${status.engineHealth === "Good"
+                      ? "bg-green-600"
+                      : "bg-yellow-500"
+                      }`}
+                  >
+                    {status.engineHealth}
+                  </span>
                 </div>
 
-                <span
-                  className={`shrink-0 px-3 py-1 rounded-full text-sm font-medium ${status.engineHealth === "Good"
-                    ? "bg-green-600"
-                    : "bg-yellow-500"
-                    }`}
-                >
-                  {status.engineHealth}
-                </span>
+                <p>Speed: {status.speed} mph</p>
+
+                <p>Fuel Level: {status.fuelLevel.toFixed(1)}%</p>
+
+                <div className="bg-gray-700 h-3 w-full rounded">
+                  <div
+                    className={`h-full rounded ${getFuelColor(
+                      status.fuelLevel
+                    )}`}
+                    style={{ width: `${status.fuelLevel}%` }}
+                  />
+                </div>
+
+                <p>
+                  Location: {status.location.latitude.toFixed(3)},
+                  {" "}
+                  {status.location.longitude.toFixed(3)}
+                </p>
+
+                <p className="text-sm text-gray-400 mt-2">
+                  Last updated: {dayjs(status.timestamp).fromNow()}
+                </p>
               </div>
+            ))}
+        </div>
 
-              {/* BODY */}
-              <p>Speed: {status.speed} mph</p>
+        {/* RIGHT PANEL */}
+        <div className="flex-1 bg-gray-800 rounded-xl p-6 flex flex-col gap-6">
 
-              <p>Fuel Level: {status.fuelLevel.toFixed(1)}%</p>
-
-              <div className="bg-gray-800 h-3 w-full">
-                <div
-                  className={`h-full rounded ${getFuelColor(status.fuelLevel)}`}
-                  style={{ width: `${status.fuelLevel}%` }}
-                />
-              </div>
-
-              <p>
-                Location: {status.location.latitude.toFixed(3)},{" "}
-                {status.location.longitude.toFixed(3)}
-              </p>
-
-              <p className="text-sm text-gray-400 mt-2">
-                Last updated: {dayjs(status.timestamp).fromNow()}
-              </p>
+          {/* Guard: nothing selected */}
+          {!selectedVehicle ? (
+            <div className="flex-1 flex items-center justify-center text-gray-400">
+              Select a vehicle to view details
             </div>
-          ))}
+          ) : (
+            <>
+              {/* TOP RIGHT: extra stats*/}
+              <div className="flex-col gap-6">
+                <h2 className="text-2xl font-bold">
+                  {selectedVehicle.history[0].make}{" "}
+                  {selectedVehicle.history[0].model}{" "}
+                  {selectedVehicle.history[0].year}
+                </h2>
+
+                <p>Avg Speed: {selectedVehicle.avgSpeed}</p>
+                <p>Max Speed: {selectedVehicle.maxSpeed}</p>
+                <p>Total Mileage: {selectedVehicle.totalMileage}</p>
+                <p>Last Refueled: {dayjs(selectedVehicle.lastRefueled).fromNow()}</p>
+              </div>
+
+              {/* BOTTOM: graph */}
+              <div className="bg-gray-900 p-3 rounded-lg h-80 flex items-center justify-center text-gray-400">
+                
+                <h3 className="text-lg font-semibold mb-2">
+                  Speed History
+                </h3>
+
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={selectedVehicle.history}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="timestamp"
+                      reversed tickFormatter={(value) =>
+                        new Date(value).toLocaleTimeString()
+                      }
+                    />                    
+                    <YAxis dataKey="speed" />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="speed"
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+
+
+              </div>
+            </>
+          )}
+
+        </div>
+
       </div>
     </div>
   );
