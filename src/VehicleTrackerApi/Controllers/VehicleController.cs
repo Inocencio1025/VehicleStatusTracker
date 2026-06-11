@@ -15,28 +15,23 @@ namespace VehicleTrackerApi.Controllers
     {
 
         [Authorize]
-        [HttpPost("status")]
-        public async Task<IActionResult> CreateVehicleStatus(CreateVehicleStatusRequest request)
+        [HttpGet()]
+        public async Task<IActionResult> GetVehicles()
         {
-            var result = await vehicleWriteService.CreateVehicleStatusAsync(
-                new CreateVehicleStatusInput
-                (
-                    request.VehicleId,
-                    request.Speed,
-                    request.Location,
-                    request.FuelLvl,
-                    request.EngHlth,
-                    request.Date
-            ));
-
+            var userId = User.GetUserId();
+            if (userId is null)
+                return Unauthorized();
+            
+            var result = await vehicleReadService.GetVehiclesByUserAsync(userId.Value);
+            
             if (!result.Success)
                 return NotFound(result.Message);
 
-            return Created($"/api/vehicle/{result.Data!.VehicleId}", result.Data.VehicleId);
+            return Ok(result.Data);
         }
 
         [Authorize]
-        [HttpPost("vehicle")]
+        [HttpPost()]
         public async Task<IActionResult> CreateVehicle([FromBody] CreateVehicleRequest request)
         {
             var userId = User.GetUserId();
@@ -59,38 +54,6 @@ namespace VehicleTrackerApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("status")]
-        public async Task<IActionResult> GetVehicleStatuses()
-        {
-            var userId = User.GetUserId();
-            if (userId is null)
-                return Unauthorized();
-
-            var result = await vehicleReadService.GetLatestStatusesAsync(userId.Value);
-
-            if (!result.Success)
-                return BadRequest(result.Message);
-
-            return Ok(result.Data);
-        }
-
-        [Authorize]
-        [HttpGet("vehicles")]
-        public async Task<IActionResult> GetVehicles()
-        {
-            var userId = User.GetUserId();
-            if (userId is null)
-                return Unauthorized();
-            
-            var result = await vehicleReadService.GetVehiclesByUserAsync(userId.Value);
-            
-            if (!result.Success)
-                return NotFound(result.Message);
-
-            return Ok(result.Data);
-        }
-
-        [Authorize]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetVehicle(int id)
         {
@@ -104,25 +67,8 @@ namespace VehicleTrackerApi.Controllers
                 return NotFound(result.Message);
 
             return Ok(result.Data);
-        }
+        } 
 
-
-        [Authorize]
-        [HttpGet("{id}/history")]
-        public async Task<IActionResult> GetVehicleHistory(int id, int hours = 24)
-        {
-            var userId = User.GetUserId();
-            if (userId is null)
-                return Unauthorized();
-            
-            var result = await vehicleReadService.GetVehicleHistoryAsync(userId.Value, id, hours);
-
-            if (!result.Success)
-                return NotFound(result.Message);
-
-            return Ok(result.Data);
-        }
-                
         [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteVehicle(int id)
@@ -139,6 +85,59 @@ namespace VehicleTrackerApi.Controllers
             return NoContent();
         }
 
+        [Authorize]
+        [HttpGet("{id}/history")]
+        public async Task<IActionResult> GetVehicleHistory(int id, int hours = 24)
+        {
+            var userId = User.GetUserId();
+            if (userId is null)
+                return Unauthorized();
+            
+            var result = await vehicleReadService.GetVehicleHistoryAsync(userId.Value, id, hours);
+
+            if (!result.Success)
+                return NotFound(result.Message);
+
+            return Ok(result.Data);
+        }
+
+        [Authorize]
+        [HttpGet("status")]
+        public async Task<IActionResult> GetVehicleStatuses()
+        {
+            var userId = User.GetUserId();
+            if (userId is null)
+                return Unauthorized();
+
+            var result = await vehicleReadService.GetLatestStatusesAsync(userId.Value);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            return Ok(result.Data);
+        }
+
+        [Authorize]
+        [HttpPost("status")]
+        public async Task<IActionResult> CreateVehicleStatus(CreateVehicleStatusRequest request)
+        {
+            var result = await vehicleWriteService.CreateVehicleStatusAsync(
+                new CreateVehicleStatusInput
+                (
+                    request.VehicleId,
+                    request.Speed,
+                    request.Location,
+                    request.FuelLvl,
+                    request.EngHlth,
+                    request.Date
+            ));
+
+            if (!result.Success)
+                return NotFound(result.Message);
+
+            return Created($"/api/vehicle/{result.Data!.VehicleId}", result.Data.VehicleId);
+        }
+        
         private int? GetUserId()
         {
             return int.TryParse(
