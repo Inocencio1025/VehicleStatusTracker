@@ -13,7 +13,7 @@ Completed (no active development planned)
 
 ## Why this exists
 
-This project was built primarily as a learning exercise and to strengthen my backend + full-stack development skills.
+This project was built primarily as a learning exercise and to strengthen my backend + full-stack development skills, and learn new concepts along the way.
 
 ---
 
